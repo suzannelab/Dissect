@@ -26,3 +26,7 @@ CellSeg\.egg-info/SOURCES\.txt
 CellSeg\.egg-info/top_level\.txt
 
 dist/
+
+build/lib/CellSeg/utils\.py
+
+build/
