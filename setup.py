@@ -6,7 +6,7 @@ from setuptools import setup
 from setuptools import find_packages
 
 
-DISTNAME = 'CellSeg'
+DISTNAME = 'Dissects'
 DESCRIPTION = ''
 MAINTAINER = ''
 MAINTAINER_EMAIL = ''
@@ -55,7 +55,7 @@ def get_version_info():
     FULLVERSION = VERSION
     if os.path.exists('.git'):
         GIT_REVISION = git_version()
-    elif os.path.exists('CellSeg/version.py'):
+    elif os.path.exists('Dissects/version.py'):
         # must be a source distribution, use existing version file
         try:
             from numpy.version import git_revision as GIT_REVISION
@@ -72,7 +72,7 @@ def get_version_info():
     return FULLVERSION, GIT_REVISION
 
 
-def write_version_py(filename='CellSeg/version.py'):
+def write_version_py(filename='Dissects/version.py'):
     cnt = """
 # THIS FILE IS GENERATED FROM tyssue SETUP.PY
 #
@@ -120,7 +120,7 @@ if __name__ == "__main__":
                      ],
 
         packages=find_packages(),
-        package_data={'CellSeg': files},
+        package_data={'Dissects': files},
         include_package_data=True,
         zip_safe=False
     )
