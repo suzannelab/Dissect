@@ -546,7 +546,7 @@ class Skel():
             if not saddle_lst:
                 continue  # no filaments from this node...
             saddle_dens = np.array(
-                [x.val for x in mpu.datastructures.flatten(saddle_lst)])
+                [x.val for x in np.flatten(saddle_lst)])
             density_thres = saddle_dens.max()
             density_thres += densfrac * (cp.val - density_thres)
             # follow delaunay graph for nearest points above thres
