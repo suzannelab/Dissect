@@ -31,7 +31,7 @@ from scipy.ndimage.filters import gaussian_filter
 from skimage.filters import sobel
 from scipy import ndimage as ndi
 from skimage.measure import label
-from skimage.morphology import watershed
+from skimage.morphology import watershed   
 from skimage.morphology import remove_small_objects
 import time
 
