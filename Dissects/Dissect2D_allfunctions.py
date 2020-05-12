@@ -278,12 +278,13 @@ def CellStatsMain(seg,MaskFil,Im,KernelSize,sigMain):
 #(moyenne, std, sem, area int, perimetre)
 
     init = np.zeros((len(np.unique(seg)[2:]),9))
-    Dataframe = pd.DataFrame(data=init, columns=['CellNbr','meanCell_'+sigMain,
-					'stdCell_'+sigMain,'semCell_'+sigMain,
-					'areaCell','meanJunc_'+sigMain,
-					'stdJunc_'+sigMain,'semJunc_'+sigMain,
-					'perimeter']
-			     )
+    Dataframe = pd.DataFrame(data=init,
+							columns=['CellNbr','meanCell_'+sigMain,
+							'stdCell_'+sigMain,'semCell_'+sigMain,
+							'areaCell','meanJunc_'+sigMain,
+							'stdJunc_'+sigMain,'semJunc_'+sigMain,
+							'perimeter']
+							)
     for ind,i in enumerate(np.unique(seg)[2:]):
         JuncCellMaski = JuncCell(seg,MaskFil,i)
         # enlarge through smoothing 2*KernelSize+1
