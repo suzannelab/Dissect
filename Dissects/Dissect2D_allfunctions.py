@@ -238,9 +238,12 @@ def segmentation(InvMaskFil,min_area):
     markers = np.zeros_like(InvMaskFil)
     markers[InvMaskFil == 0] = 1
     markers[InvMaskFil > 0] = 2
+
     segmentation = watershed(edges, markers)
+    
     segmentation1,_ = ndi.label(segmentation == 2)  
     seg = remove_small_objects(segmentation1, min_area)
+
     return seg
 
 
