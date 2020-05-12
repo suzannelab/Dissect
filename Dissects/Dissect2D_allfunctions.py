@@ -238,9 +238,12 @@ def segmentation(InvMaskFil,min_area):
     markers = np.zeros_like(InvMaskFil)
     markers[InvMaskFil == 0] = 1
     markers[InvMaskFil > 0] = 2
+
     segmentation = watershed(edges, markers)
+
     segmentation1,_ = ndi.label(segmentation == 2)  
     seg = remove_small_objects(segmentation1, min_area)
+
     return seg
 
 
@@ -259,7 +262,6 @@ def JuncCell(seg,MaskFil,i):
     #Box smooth around unique cell + multiply by MaskFil to have pixel filaments
     kernel = Box2DKernel(2)
     JuncCelli = (convolve(segmentationi,kernel)*MaskFil).astype(bool).astype(int)
-        
     return JuncCelli
 
 
@@ -278,12 +280,13 @@ def CellStatsMain(seg,MaskFil,Im,KernelSize,sigMain):
 #(moyenne, std, sem, area int, perimetre)
 
     init = np.zeros((len(np.unique(seg)[2:]),9))
-    Dataframe = pd.DataFrame(data=init, columns=['CellNbr','meanCell_'+sigMain,
-					'stdCell_'+sigMain,'semCell_'+sigMain,
-					'areaCell','meanJunc_'+sigMain,
-					'stdJunc_'+sigMain,'semJunc_'+sigMain,
-					'perimeter']
-			     )
+    Dataframe = pd.DataFrame(data=init,
+							columns=['CellNbr','meanCell_'+sigMain,
+							'stdCell_'+sigMain,'semCell_'+sigMain,
+							'areaCell','meanJunc_'+sigMain,
+							'stdJunc_'+sigMain,'semJunc_'+sigMain,
+							'perimeter']
+							)
     for ind,i in enumerate(np.unique(seg)[2:]):
         JuncCellMaski = JuncCell(seg,MaskFil,i)
         # enlarge through smoothing 2*KernelSize+1
