@@ -46,12 +46,10 @@ from scipy.stats import pearsonr
 
 
 def otsufilter(img):
-    
     '''
     This function applies an Otsu filter, it takes in arguments a matrix and return a mask where 
     the background is set to 0 and the foreground to 1. Change nbins with the type of images (8bits = 256, 16bits = 65536
     '''
-    
     val = filters.threshold_otsu(img, nbins = 65536)
     mask = img < val
     mask = np.invert(mask)
@@ -69,11 +67,9 @@ def otsufilter(img):
 
 
 def stack_importation(chemin):
-    
     '''
     This function imports a stack of images .TIF in a 3D matrix, it takes in arguments the path of the folder.
     '''
-    
     img = MultiImage(chemin)
     size = len(img)
     if (size != 1) :
@@ -91,14 +87,12 @@ def stack_importation(chemin):
 
 
 def proj_aroundMAX(matrix,shape,number):
-    
     '''
     This function makes a maximum intensity projection of a 3D matrix, it takes in arguments 
 	-the 3D matrix
 	-the shape of the 3D matrix in a tuple 
 	-and the number of points around the max to average. The mean will be calculated with 2n+1 points (middle point = the max)
     '''
-    
     projection = np.zeros(shape)
     for x in range(shape[0]):
         for y in range(shape[1]):
@@ -111,12 +105,10 @@ def proj_aroundMAX(matrix,shape,number):
 
 
 def tif2fits(base,chemin,stack=True,N=None):
-    
     '''
     Function to convert .tif to .fits  
 	Use proj_aroundMAX to define the width of projection
     '''
-    
     if stack:
         im3d,im3d_size,im3d_shape = stack_importation(chemin)
         if N == None:
@@ -132,12 +124,10 @@ def tif2fits(base,chemin,stack=True,N=None):
 
 
 def RunDisperse2D(ImDir,ImName,Threshold,MSC=False):
-    
     '''
     This function runs Disperse on the chosen image (in argument). Choose the threshold manually here (not automated YET), 
     and MSC=False for ce 1rst time you run it. MSC=True after.
     '''
-    
     if MSC:
         os.system('mse '+ImDir+ImName+' -outDir '+ImDir+' -loadMSC '+ImDir+ImName+'.MSC'+' -cut '+Threshold+' -periodicity 0 -upSkl')
     else:
@@ -156,7 +146,6 @@ def clean_skeleton(skeleton, save=True):
     Function that cleans skeleton.
     Means that all isolated filament or critical point will be removed.
     """
-
     keep_going = True
 
     while keep_going:
@@ -212,8 +201,6 @@ def clean_skeleton(skeleton, save=True):
 def FilMask_int(skeleton,im):
 #cette fonction permet d'assigner une position entière aux points des segments. 
 #Si la coordonnée est plus grande que la taille de l'image, elle est ramenée au bord. 
-
-
     mask = np.zeros_like(im)
     for i in range(skeleton.nfil):
         for j in range(len(skeleton.fil[i].points)):
@@ -240,7 +227,6 @@ def NormaliseImage(im,KernelSize) :
     otsu = otsufilter(smoothIm)
     background = np.mean(im[np.where(~otsu)])
     normIm = im / background
-    
     return normIm
 
 
@@ -295,19 +281,23 @@ def CellStatsMain(seg,MaskFil,Im,KernelSize,sigMain):
 #(moyenne, std, sem, area int, perimetre)
 
     init = np.zeros((len(np.unique(seg)[2:]),9))
-    Dataframe = pd.DataFrame(data=init,columns=['CellNbr','meanCell_'+sigMain,'stdCell_'+sigMain,'semCell_'+sigMain,'areaCell','meanJunc_'+sigMain,'stdJunc_'+sigMain,'semJunc_'+sigMain,'perimeter']) 
-
+    Dataframe = pd.DataFrame(data=init,
+							columns=['CellNbr','meanCell_'+sigMain,
+							'stdCell_'+sigMain,'semCell_'+sigMain,
+							'areaCell','meanJunc_'+sigMain,
+							'stdJunc_'+sigMain,'semJunc_'+sigMain,
+							'perimeter']
+							)
     for ind,i in enumerate(np.unique(seg)[2:]):
         JuncCellMaski = JuncCell(seg,MaskFil,i)
-        
         # enlarge through smoothing 2*KernelSize+1
         JuncCellMaski_conv = convolve(JuncCellMaski,Tophat2DKernel(KernelSize))
         JuncCellMaski_conv[np.where(JuncCellMaski_conv != 0)] = 1
-        
-        ### multiply this mask of filaments around cell i with pixels from Im
-        #JuncCell_i=JuncCellMaski_conv*Im
-        
-        #compute mean and std of bcat in cells and actine in filaments
+        '''
+		multiply this mask of filaments around cell i with pixels from Im
+        JuncCell_i=JuncCellMaski_conv*Im
+        compute mean and std of bcat in cells and actine in filaments
+		'''
         Dataframe['CellNbr'][ind] = i
         Dataframe['meanCell_'+sigMain][ind] = np.mean(Im[np.where(seg == i)])
         Dataframe['stdCell_'+sigMain][ind] = np.std(Im[np.where(seg == i)])
