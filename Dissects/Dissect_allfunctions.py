@@ -31,7 +31,7 @@ from scipy.ndimage.filters import gaussian_filter
 from skimage.filters import sobel
 from scipy import ndimage as ndi
 from skimage.measure import label
-from skimage.morphology import watershed   
+from skimage.morphology import watershed
 from skimage.morphology import remove_small_objects
 import time
 
@@ -46,7 +46,7 @@ from scipy.stats import pearsonr
 
 
 def otsufilter(img):
-    '''
+'''
     This function applies an Otsu filter, it takes in arguments a matrix and return a mask where 
     the background is set to 0 and the foreground to 1. Change nbins with the type of images (8bits = 256, 16bits = 65536
     '''
@@ -125,17 +125,17 @@ def tif2fits(base,chemin,stack=True,N=None):
 
 
 
-def RunDisperse2D(ImDir,ImName,Threshold,MSC=False):
+def RunDisperse2D(imDir,ImName,Threshold,MSC=False):
     '''
     This function runs Disperse on the chosen image (in argument). Choose the threshold manually here (not automated YET), 
     and MSC=False for ce 1rst time you run it. MSC=True after.
     '''
     if MSC:
-        os.system('mse '+ImDir+ImName+' -outDir '+ImDir+' -loadMSC '+ImDir+ImName+'.MSC'+' -cut '+Threshold+' -periodicity 0 -upSkl')
+        os.system('mse '+imDir+ImName+' -outDir '+imDir+' -loadMSC '+imDir+ImName+'.MSC'+' -cut '+Threshold+' -periodicity 0 -upSkl')
     else:
-        os.system('mse '+ImDir+ImName+' -outDir '+ImDir+' -cut '+Threshold+' -periodicity 0 -upSkl')                
-    os.system('skelconv '+ImDir+ImName+'_c'+Threshold+'.up.NDskl -outDir '+ImDir+' -toFITS')
-    os.system('skelconv '+ImDir+ImName+'_c'+Threshold+'.up.NDskl -outDir '+ImDir+' -to NDskl_ascii')    
+        os.system('mse '+imDir+ImName+' -outDir '+imDir+' -cut '+Threshold+' -periodicity 0 -upSkl')                
+    os.system('skelconv '+imDir+ImName+'_c'+Threshold+'.up.NDskl -outDir '+imDir+' -toFITS')
+    os.system('skelconv '+imDir+ImName+'_c'+Threshold+'.up.NDskl -outDir '+imDir+' -to NDskl_ascii')    
     return
 
 
