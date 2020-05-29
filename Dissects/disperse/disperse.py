@@ -1,26 +1,26 @@
 # coding: utf-8
 import os
-import sys
 
-def RunDisperse2D(imDir, imName, cut, MSC=False):
-    '''
-    This function runs Disperse on the chosen fits image (in argument). 
-        Input: image directory, image name (image has to be a fits), cut is the 
-        threshold (manually here), and MSC default is False change to True if you have 
-        already run it once and it is stored in .
-        Returns two files: a fits image and a ascii skeleton
-    '''
+
+def run_disperse(im_dir, im_name, cut, MSC=False):
+    """
+    Run Disperse on the chosen fits image (in argument).
+    Input: image directory, image name (image has to be a fits), cut is the
+          threshold (manually here), and MSC default is False change to True if
+          you have already run it once and it is stored in .
+    Return two files: a fits image and a ascii skeleton
+    """
 
     if MSC:
-        os.system('mse ' + imDir + imName + ' -outDir ' + imDir + ' -loadMSC ' +
-                  imDir + imName + '.MSC' + ' -cut ' + cut + ' -periodicity 0 -upSkl')
+        os.system('mse ' + im_dir + im_name + ' -outDir ' + im_dir + ' -loadMSC ' +
+                  im_dir + im_name + '.MSC' + ' -cut ' + cut + ' -periodicity 0 -upSkl')
     else:
-        os.system('mse ' + imDir + imName + ' -outDir ' + imDir +
+        os.system('mse ' + im_dir + im_name + ' -outDir ' + im_dir +
                   ' -cut ' + cut + ' -periodicity 0 -upSkl')
 
-    os.system('skelconv ' + imDir + imName + '_c' + cut +
-              '.up.NDskl -outDir ' + imDir + ' -toFITS')
-    os.system('skelconv ' + imDir + imName + '_c' + cut +
-              '.up.NDskl -outDir ' + imDir + ' -to NDskl_ascii')
+    os.system('skelconv ' + im_dir + im_name + '_c' + cut +
+              '.up.NDskl -outDir ' + im_dir + ' -toFITS')
+    os.system('skelconv ' + im_dir + im_name + '_c' + cut +
+              '.up.NDskl -outDir ' + im_dir + ' -to NDskl_ascii')
 
     return

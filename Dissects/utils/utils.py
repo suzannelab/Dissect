@@ -108,3 +108,27 @@ def xyz_from_array(img_array):
                     ly.append(y)
                     lz.append(z)
     return lx, ly, lz
+
+
+def filmask_int(skeleton, im):
+    """
+    Assign integer position to segment's points.
+
+    If the coordinate is higher than image size,
+    the position is brought to the edge.
+    """
+    mask = np.zeros_like(im)
+    for i in range(skeleton.nfil):
+        for j in range(len(skeleton.fil[i].points)):
+            ii = skeleton.fil[i].points[j, 1].astype(int)
+            if ii < 0:
+                ii = 0
+            if ii >= mask.shape[0]:
+                ii = mask.shape[0] - 1
+            jj = skeleton.fil[i].points[j, 0].astype(int)
+            if jj < 0:
+                jj = 0
+            if jj >= mask.shape[1]:
+                jj = mask.shape[1] - 1
+            mask[ii, jj] = 1
+    return mask
