@@ -4,7 +4,7 @@ from skimage import morphology, filters
 from scipy import ndimage as ndi
 
 
-def segmentation(inv_maskfil, min_area=2, reverse=True):
+def segmentation(inv_maskfil, min_area=None, reverse=True):
     """
 
     """
@@ -17,7 +17,8 @@ def segmentation(inv_maskfil, min_area=2, reverse=True):
 
     segmentation=morphology.watershed(edges, markers)
     segmentation, _=ndi.label(segmentation == 2)
-    segmentation=morphology.remove_small_objects(segmentation, min_area)
+    if min_area is not None : 
+        segmentation = morphology.remove_small_objects(segmentation, min_area)
 
     return segmentation
 
