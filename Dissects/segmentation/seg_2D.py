@@ -37,16 +37,16 @@ def segmentation(inv_maskfil, min_area=None):
     return segmentation
 
 
-def junction_around_cell(seg, maskfil, i):
+def junction_around_cell(maskfil, seg, cell):
     """Find junctions around cell i.
 
     Parameters
     ----------
-    seg: np.array
-        output of the segmentation function
     maskfil: np.array
         filament = 1, cells and background = 0
-    i: integer
+    seg: np.array
+        output of the segmentation function
+    cell: integer
         number of the chosen cell
 
     Returns
@@ -56,7 +56,7 @@ def junction_around_cell(seg, maskfil, i):
 
     """
     segmentationi = np.zeros_like(seg)
-    segmentationi[np.where(seg == i)] = 1
+    segmentationi[np.where(seg == cell)] = 1
     '''
     # Box smooth around unique cell + multiply by MaskFil to have pixel
     # filaments
