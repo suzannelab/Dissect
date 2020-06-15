@@ -15,10 +15,11 @@ dist
 *.tif
 *.eps *.avi
 *.png
-
+*.pyc # python precompalied
 
 
 *.ipynb_checkpoints
 build/
 dist/
+__pycache__/
 
