@@ -3,10 +3,11 @@ import numpy as np
 import scipy as sc
 from astropy.convolution import convolve, Tophat2DKernel
 import pandas as pd
-from segmentation import JuncCell
+from segmentation.seg_2D import JuncCell
 
+#__all__ = ["cellstats"]
 
-def cellstats(seg, maskfil, im, kernelsize, sigmain):
+def cellstats(seg, maskfil, im, kernelsize, sigmain):    
     """
     Create a dataframe.
 
@@ -26,17 +27,25 @@ def cellstats(seg, maskfil, im, kernelsize, sigmain):
     sigmain : string
     The name of the signal analysed.
     """
+
+    import exifread
+
+    with open(ImDir+ImName1, 'rb') as f:
+        tags = exifread.process_file(f)
+    Conv = tags['Image XResolution'].values[0].num/tags['Image XResolution'].values[0].den
+    
     init = np.zeros((len(np.unique(seg)[2:]), 9))
     dataframe = pd.DataFrame(data=init,
                              columns=['CellNbr',
+                                      'perimeter_um',
+                                      'areaCell_um2',
                                       'meanCell_' + sigmain,
                                       'stdCell_' + sigmain,
                                       'semCell_' + sigmain,
-                                      'areaCell',
                                       'meanJunc_' + sigmain,
                                       'stdJunc_' + sigmain,
-                                      'semJunc_' + sigmain,
-                                      'perimeter'])
+                                      'semJunc_' + sigmain
+                                     ])
 
     for ind, i in enumerate(np.unique(seg)[2:]):
         juncellmaski = JuncCell(seg, maskfil, i)
@@ -44,13 +53,15 @@ def cellstats(seg, maskfil, im, kernelsize, sigmain):
         juncellmaski_conv = convolve(juncellmaski, Tophat2DKernel(kernelsize))
         juncellmaski_conv[np.where(juncellmaski_conv != 0)] = 1
         dataframe['CellNbr'][ind] = i
+        dataframe['perimeter_um'][ind] = len(np.where(juncellmaski == 1)[0])/Conv
+        dataframe['areaCell_um2'][ind] = len(np.where(seg == i)[0])/Conv**2
         dataframe['meanCell_' + sigmain][ind] = np.mean(im[np.where(seg == i)])
         dataframe['stdCell_' + sigmain][ind] = np.std(im[np.where(seg == i)])
         dataframe['semCell_' + sigmain][ind] = sc.stats.sem(im[np.where(seg == i)])
-        dataframe['areaCell'][ind] = len(np.where(seg == i)[0])
+        
         dataframe['meanJunc_' + sigmain][ind] = np.mean(im[np.where(juncellmaski_conv != 0)])
         dataframe['stdJunc_' + sigmain][ind] = np.std(im[np.where(juncellmaski_conv != 0)])
         dataframe['semJunc_' + sigmain][ind] = sc.stats.sem(im[np.where(juncellmaski_conv != 0)])
-        dataframe['perimeter'][ind] = len(np.where(juncellmaski == 1)[0])
+        
 
     return dataframe
