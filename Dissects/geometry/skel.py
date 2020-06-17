@@ -230,7 +230,7 @@ class Skel(object):
                     self.crit_data_name.append(_readline(f).strip())
                 # read data
                 for cp in self.crit:
-                    cp.data = [float(Str) for Str in _readline(f).split()]
+                    cp.data = [eval(Str) for Str in _readline(f).split()]
                 print('critical points done')
 
             if _check_p(f, '[FILAMENTS DATA]', optional=True):

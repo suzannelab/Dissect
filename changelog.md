@@ -1,5 +1,4 @@
 # Code refactoring
-
 Add travis to follow code modification
 
 ## Test directory
@@ -21,3 +20,9 @@ Simplify `load_image`, and add metadata dictionnary (only pixel xy ratio informa
 
 ## Image directory
 Move `import_im` function from io directory to image directory as `z_project` function. Combine with `proj_around_max` function. Made some simplification of projection moreover when it concerns the full stack. 
+
+## Geometry
+Create `Skeleton` class, with different dataframe to save each information (critical points, filaments and points). This class contains different method:
+- `remove_lonely_cp` : remove isolated critical point connected to any filament
+- `remove_free_filament` : remove filament which in one side are not connected to an other filament. At the end we obtain a closed skeleton. 
+

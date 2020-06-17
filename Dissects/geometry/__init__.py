@@ -1,1 +1,1 @@
-from .skel import *
+from .skeleton import Skeleton
