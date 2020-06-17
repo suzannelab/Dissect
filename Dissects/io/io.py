@@ -3,8 +3,9 @@
 import numpy as np
 from skimage.io.collection import MultiImage, Image
 from astropy.io import fits
-from Dissects.image import proj_around_max
-
+from Dissects.image.image import proj_around_max
+import exifread
+from os import path
 
 def stack_importation(path):
     """
@@ -62,14 +63,20 @@ def import_im(path, im3d=True, proj=False, N=None):
                 info_proj = '_Widthproj' + str(2 * N + 1)
         else:
             im = im3d
+            info_proj = '_3D'
     else:
-        im = Image.open(path)
+        im = np.array(Image.open(path)).astype(np.float64)
         info_proj = ''
     print('image:', len(im.shape), 'dimensions')
-    return im, info_proj
+    with open(path, 'rb') as f:
+        tags = exifread.process_file(f)
+
+    scale = tags['Image XResolution'].values[0].num/tags['Image XResolution'].values[0].den
+
+    return im, info_proj, scale
 
 
-def tofits(im, info_proj):
+def tofits(im,  info_proj, path):
     """Convert a tif file into a fits file."""
     hdu = fits.PrimaryHDU(im)
     # modification de l'header pour avoir la conversion µm/pixel
@@ -78,6 +85,7 @@ def tofits(im, info_proj):
     #fits.setval(hdu, 'voxel_depth', value='M31')
     imfile = path.split('.')[0] + info_proj + '.fits'
     hdu.writeto(imfile, overwrite=True)
+
     print('saved file:', imfile)
 
     return imfile
