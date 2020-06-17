@@ -1,60 +1,73 @@
-# coding: utf-8
+import warnings
 import numpy as np
 import scipy as sc
-from astropy.io import fits
+
+
+def z_project(image, method='max', n=None, metadata=None):
+    """ Make a z projection
+
+    Parameters
+    ----------
+    image: np.array
+    method: str, 'max' or 'mean'
+    n: int, if None, make projection on all z section,
+    else take n section above and bellow the position of the maximal value
+
+    Returns
+    -------
+    projection : np.array in 2D
+
+    """
+
+    # Verify that is 3D images
+    if len(image.shape) != 3:
+        warnings.warn('This is not a 3D images. The same array is returned.')
+        return image
+
+    if method == 'max':
+        projection = np.max(image, axis=0)
+    elif method == 'mean':
+        if n is None:
+            projection = np.mean(image, axis=0)
+        else:
+            # maybe it can be simplify
+            id_max = np.argmax(image, axis=0)
+            projection = np.zeros(image.shape[1:])
+            l_x, l_y = np.meshgrid(range(image.shape[1:][0]),
+                                   range(image.shape[1:][1]))
+            for x, y in zip(l_x.ravel(), l_y.ravel()):
+                min_bound = 0 if id_max[x, y] - n < 0 else id_max[x, y] - n
+                max_bound = image.shape[0] if id_max[
+                    x, y] + n + 1 > image.shape[0] else id_max[x, y] + n + 1
+                projection[x, y] = np.nanmean(
+                    image[min_bound:max_bound, x, y])
+    return projection
+
 from astropy.convolution import convolve, Tophat2DKernel
-from PIL import Image
 from skimage import filters as filters
 
 
-
-def otsufilter(img, nbins=65536):
+def otsufilter(image, nbins=65536):
     """
-    Applie an Otsu filter.
+    Apply an Otsu filter.
 
-    It takes in arguments a matrix.
-    Returns a mask where the background is set to 0 and the foreground to 1
+    Parameters
+    ----------
+    image: nd.array, need to be a 2D nd.array
+
+    Returns
+    -------
+    mask: nd.array, where the background is set to 0 and the foreground to 1
     Change nbins with the type of images (8bits = 256, 16bits = 65536
     """
-    val = filters.threshold_otsu(img, nbins=nbins)
-    mask = img < val
-    mask = np.invert(mask)
+    val = filters.threshold_otsu(image, nbins=nbins)
+    mask = image > val
     mask = sc.ndimage.binary_fill_holes(mask)
     return mask
 
 
-def proj_around_max(matrix, n):
-    """
-    Make a maximum intensity projection of a 3D matrix.
-
-    Parameters
-    ----------
-    matrix : 3D numpy.ndarray
-        The 3D array of the image
-
-    n : integer
-        The number of points around the max to average. The mean will be
-        calculated with 2*number+1 points (middle point = the max)
-    Returns
-    -------
-    projection : 2D numpy.ndarray
-        Projected image
-    """
-    shape = matrix.shape
-    projection = np.zeros((shape[0],shape[1]))
-    l_x, l_y = np.meshgrid(range(shape[0]), range(shape[1]))
-    for x, y in zip(l_x.ravel(), l_y.ravel()):
-        ind_max = np.argmax(matrix[x, y, :])
-        inf = max(ind_max - n, 0)
-        sup = min(ind_max + (n + 1), matrix.shape[2])
-        projection[x, y] = np.mean(matrix[x, y, inf:sup])
-    return projection
-
-
-
-
-
 def normalise_im(im, kernelsize):
     """Normalise the image by the backgroung."""
-    norm_im = im / np.mean(im[np.where(~otsufilter(convolve(im, Tophat2DKernel(kernelsize))))])
+    norm_im = im / \
+        np.mean(im[np.where(~otsufilter(convolve(im, Tophat2DKernel(kernelsize))))])
     return norm_im
