@@ -3,11 +3,11 @@ import numpy as np
 import scipy as sc
 from astropy.convolution import convolve, Tophat2DKernel
 import pandas as pd
-from segmentation.seg_2D import JuncCell
+from segmentation.seg_2D import junction_around_cell
 
 #__all__ = ["cellstats"]
 
-def cellstats(seg, maskfil, im, kernelsize, sigmain):    
+def cellstats(seg, maskfil, im, kernelsize, sigmain, scale):    
     """
     Create a dataframe.
 
@@ -26,14 +26,12 @@ def cellstats(seg, maskfil, im, kernelsize, sigmain):
 
     sigmain : string
     The name of the signal analysed.
-    """
-
-    import exifread
-
-    with open(ImDir+ImName1, 'rb') as f:
-        tags = exifread.process_file(f)
-    Conv = tags['Image XResolution'].values[0].num/tags['Image XResolution'].values[0].den
     
+    scale : integer
+    The conversion number -pixel to micrometer- given by import_im
+    """
+   
+
     init = np.zeros((len(np.unique(seg)[2:]), 9))
     dataframe = pd.DataFrame(data=init,
                              columns=['CellNbr',
@@ -48,13 +46,13 @@ def cellstats(seg, maskfil, im, kernelsize, sigmain):
                                      ])
 
     for ind, i in enumerate(np.unique(seg)[2:]):
-        juncellmaski = JuncCell(seg, maskfil, i)
+        juncellmaski = junction_around_cell(maskfil, seg, i)
         # enlarge through smoothing 2*KernelSize+1
         juncellmaski_conv = convolve(juncellmaski, Tophat2DKernel(kernelsize))
         juncellmaski_conv[np.where(juncellmaski_conv != 0)] = 1
         dataframe['CellNbr'][ind] = i
-        dataframe['perimeter_um'][ind] = len(np.where(juncellmaski == 1)[0])/Conv
-        dataframe['areaCell_um2'][ind] = len(np.where(seg == i)[0])/Conv**2
+        dataframe['perimeter_um'][ind] = len(np.where(juncellmaski == 1)[0])/scale
+        dataframe['areaCell_um2'][ind] = len(np.where(seg == i)[0])/scale**2
         dataframe['meanCell_' + sigmain][ind] = np.mean(im[np.where(seg == i)])
         dataframe['stdCell_' + sigmain][ind] = np.std(im[np.where(seg == i)])
         dataframe['semCell_' + sigmain][ind] = sc.stats.sem(im[np.where(seg == i)])

@@ -5,7 +5,7 @@ from astropy.io import fits
 from astropy.convolution import convolve, Tophat2DKernel
 from PIL import Image
 from skimage import filters as filters
-from io.io import stack_importation
+
 
 
 def otsufilter(img, nbins=65536):
