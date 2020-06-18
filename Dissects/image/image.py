@@ -1,7 +1,8 @@
 import warnings
 import numpy as np
 import scipy as sc
-from scipy import ndimage as ndi
+from skimage.morphology import binary_dilation
+
 
 def z_project(image, method='max', n=None, metadata=None):
     """ Make a z projection
@@ -54,14 +55,9 @@ def dilation(mask, width=2):
     """
     if width == 0:
         return mask
-    if mask.shape == 2:
-        structure = ndi.generate_binary_structure(width, width)
-    else:
-        structure = ndi.generate_binary_structure(width, width, width)
-
-    return ndi.binary_dilation(mask, structure=structure)
-
-
+    mask = ~mask.astype(bool)
+    selem = np.ones(np.repeat(width, len(mask.shape)))
+    return (~binary_dilation(mask, selem=selem)).astype(int)
 
 
 from astropy.convolution import convolve, Tophat2DKernel

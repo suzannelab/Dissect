@@ -52,6 +52,8 @@ class Skeleton():
     def remove_free_filament(self):
         """ Remove filament which have one free side.
         At the end there is a closed skeleton.
+
+        todo:: Reduire/Supprimer les boucles
         """
         tip_cp = self.critical_point[self.critical_point['nfil'] == 1].index
 
@@ -92,7 +94,7 @@ class Skeleton():
                 self.critical_point['nfil'] == 1].index
 
             self.point = self.point[self.point[
-                'filament'].isin(self.filament['id'])]
+                'filament'].isin(self.filament['id'])].copy()
 
             new_i = [self.filament[self.filament['id'] == old_i].index[0]
                      for old_i in self.point['filament']]
@@ -109,13 +111,20 @@ class Skeleton():
         binary_image: np.array, filament=0 and background=1
         """
         binary_image = np.ones((self.specs['bbox_delta']).astype(int))
-        binary_image[list('xyz')[self.specs['ndims'] - 1]]
         for i, coord in self.critical_point[list('xyz')[:self.specs['ndims']]].iterrows():
-            binary_image[coord.astype(int)[0], coord.astype(int)[
-                1], coord.astype(int)[2]] = 0
+            if self.specs["ndims"] == 2:
+                binary_image[coord.astype(int)[0], coord.astype(int)[
+                    1]] = 0
+            else:
+                binary_image[coord.astype(int)[0], coord.astype(int)[
+                    1], coord.astype(int)[2]] = 0
 
         for i, coord in self.point[list('xyz')[:self.specs['ndims']]].iterrows():
-            binary_image[coord.astype(int)[0], coord.astype(int)[
-                1], coord.astype(int)[2]] = 0
+            if self.specs['ndims'] == 2:
+                binary_image[coord.astype(int)[0], coord.astype(int)[
+                    1]] = 0
+            else:
+                binary_image[coord.astype(int)[0], coord.astype(int)[
+                    1], coord.astype(int)[2]] = 0
 
-        return binary_image
+        return binary_image.T

@@ -37,10 +37,10 @@ def load_NDskl(filename):
 
     Returns
     -------
-    specs : Dict
     cp_df : pd.DataFrame
     fil_df : pd.DataFrame
     fil_point : pd.DataFrame
+    specs : Dict
 
     """
     specs = {}
@@ -150,7 +150,7 @@ def load_NDskl(filename):
         # merge cp_df and cp_supp
         fil_points = pd.concat([fil_points, fil_supp], axis=1, sort=False)
 
-    return specs, cp_df, fil_df, fil_points
+    return cp_df, fil_df, fil_points, specs
 
 
 def load_image(path):
@@ -162,8 +162,8 @@ def load_image(path):
 
     Returns
     -------
-    metadata: dict, contains some meta data of image like pixel ration
     image: np.array
+    metadata: dict, contains some meta data of image like pixel ration
     """
 
     metadata = {}
@@ -177,11 +177,13 @@ def load_image(path):
         warnings.warn("The ratio is not the same in x and y axis.")
 
     image = imread(path)
+    metadata["height"] = image.shape[0]
+    metadata["width"] = image.shape[1]
     return image, metadata
 
 
 def save_fits(image, filename, path=None):
-    """ Convert and save an np.array image into fits file.
+    """ Convert and save an np.array image into fits file to run Disperse.
 
     Parameters
     ----------

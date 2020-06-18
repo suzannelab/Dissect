@@ -1,5 +1,5 @@
 import numpy as np
-from skimage import morphology, filters
+from skimage import morphology, filters, segmentation
 from scipy import ndimage as ndi
 
 
@@ -23,7 +23,7 @@ def segmentation(mask, min_area=None):
     markers[mask == 0] = 1
     markers[mask > 0] = 2
 
-    segmentation = morphology.watershed(edges, markers)
+    segmentation = segmentation.watershed(edges, markers)
     segmentation, _ = ndi.label(segmentation == 2)
     if min_area is not None:
         segmentation = morphology.remove_small_objects(segmentation, min_area)
