@@ -6,6 +6,15 @@ pandas >= 0.24
 pytables
 jupyter
 notebook
+opencv
+skimage
+astropy
+exifread
+logging
+warnings
+re
+os
+
 
 # Need to be verify
 quantities

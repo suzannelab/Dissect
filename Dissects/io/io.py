@@ -198,3 +198,7 @@ def save_fits(image, filename, path=None):
     hdu.writeto(os.path.join(path, filename), overwrite=True)
 
     logging.info('Saved file: {filename} into {path} directory')
+
+
+def save_vtp(skeleton):
+    return

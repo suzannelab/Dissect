@@ -1,7 +1,7 @@
 import warnings
 import numpy as np
 import scipy as sc
-
+from scipy import ndimage as ndi
 
 def z_project(image, method='max', n=None, metadata=None):
     """ Make a z projection
@@ -42,6 +42,27 @@ def z_project(image, method='max', n=None, metadata=None):
                 projection[x, y] = np.nanmean(
                     image[min_bound:max_bound, x, y])
     return projection
+
+
+def dilation(mask, width=2):
+    """ Make a symetrical dilation in all direction
+
+    Parameters
+    ----------
+    mask:
+    width: int, size of the dilation.
+    """
+    if width == 0:
+        return mask
+    if mask.shape == 2:
+        structure = ndi.generate_binary_structure(width, width)
+    else:
+        structure = ndi.generate_binary_structure(width, width, width)
+
+    return ndi.binary_dilation(mask, structure=structure)
+
+
+
 
 from astropy.convolution import convolve, Tophat2DKernel
 from skimage import filters as filters

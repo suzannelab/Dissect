@@ -26,3 +26,15 @@ Create `Skeleton` class, with different dataframe to save each information (crit
 - `remove_lonely_cp` : remove isolated critical point connected to any filament
 - `remove_free_filament` : remove filament which in one side are not connected to an other filament. At the end we obtain a closed skeleton. 
 
+## Segmentation
+Always use `mask` np.array as filament=0 and background=1. 
+
+## Utils
+Move `fil_mask_int` to `Skeleton` class as `create_binary_image`.
+Move `img_dilation` to image.py as `dilation` function. 
+Remove `fil_dilation` which to the same as `dilation` function.
+Remove `xyz_from_array` which can be done with `x,y,z = np.where(image>0)`. 
+Remove `create_df_from_skeleton` since we load NDskl skeleton as `Skeleton` object. 
+
+
+

@@ -6,15 +6,6 @@ import warnings
 
 class Skeleton():
 
-    # def __init__(self):
-    #     """ Initialisation of an empty skeleton
-
-    #     """
-    #     self.critical_point = pd.DataFrame()
-    #     self.filament = pd.DataFrame()
-    #     self.point = pd.DataFrame()
-    #     self.specs = {}
-
     def __init__(self, cp_df, fil_df, point_df, specs={}):
         """ Create an skeleton object
 
@@ -109,3 +100,22 @@ class Skeleton():
 
             self.critical_point.drop(labels='id', axis=1, inplace=True)
             self.filament.drop(labels='id', axis=1, inplace=True)
+
+    def create_binary_image(self):
+        """ Create a binary image from skeleton
+
+        Returns
+        -------
+        binary_image: np.array, filament=0 and background=1
+        """
+        binary_image = np.ones((self.specs['bbox_delta']).astype(int))
+        binary_image[list('xyz')[self.specs['ndims'] - 1]]
+        for i, coord in self.critical_point[list('xyz')[:self.specs['ndims']]].iterrows():
+            binary_image[coord.astype(int)[0], coord.astype(int)[
+                1], coord.astype(int)[2]] = 0
+
+        for i, coord in self.point[list('xyz')[:self.specs['ndims']]].iterrows():
+            binary_image[coord.astype(int)[0], coord.astype(int)[
+                1], coord.astype(int)[2]] = 0
+
+        return binary_image
