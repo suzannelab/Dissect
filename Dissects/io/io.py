@@ -7,7 +7,7 @@ import exifread
 import numpy as np
 import pandas as pd
 
-from skimage.io import imread
+from skimage.io import imread, imsave
 from astropy.io import fits
 
 
@@ -241,6 +241,28 @@ def save_fits(image, filename, path=None):
         path = os.getcwd()
 
     hdu.writeto(os.path.join(path, filename), overwrite=True)
+
+    logging.info('Saved file: {filename} into {path} directory')
+
+
+def save_image(image_array, filename, path=None):
+    """ Save np.array image into tif file.
+
+    Parameters
+    ----------
+    image_array : numpy array
+    filename: str, name of fits file
+    path: str,
+    """
+    if filename[-4:] != '.tif':
+        filename = filename + '.tif'
+    if path is None:
+        warnings.warn("Fits file will be saved in the working directory. \
+                       Or maybe path is specify in filename...")
+        path = os.getcwd()
+
+    filepath = os.path.join(path, filename)
+    imsave(filepath, image_array)
 
     logging.info('Saved file: {filename} into {path} directory')
 
