@@ -21,6 +21,17 @@ class Skeleton():
         self.point = point_df
         self.specs = specs
 
+        warnings.warn("Has pixel can be half pixel from DisPerSE output, \
+                  we take the integer part of xyz values. ")
+        if 'z' in self.critical_point.columns:
+            self.critical_point[list('xyz')] = self.critical_point[
+                list('xyz')].astype(int)
+            self.point[list('xyz')] = self.point[list('xyz')].astype(int)
+        else:
+            self.critical_point[list('xy')] = self.critical_point[
+                list('xy')].astype(int)
+            self.point[list('xy')] = self.point[list('xy')].astype(int)
+
     def remove_lonely_cp(self):
         """ Remove critical point which are not conected to a filament.
         """
