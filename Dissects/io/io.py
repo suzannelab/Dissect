@@ -177,9 +177,50 @@ def load_image(path):
         warnings.warn("The ratio is not the same in x and y axis.")
 
     image = imread(path)
-    metadata["height"] = image.shape[0]
-    metadata["width"] = image.shape[1]
+    if len(image.shape) == 2:
+        metadata["height"] = image.shape[0]
+        metadata["width"] = image.shape[1]
+    else:
+        metadata["height"] = image.shape[1]
+        metadata["width"] = image.shape[2]
+        metadata["depth"] = image.shape[0]
+
     return image, metadata
+
+
+def load_skeleton(filestore, data_names=['critical_point', 'filament', 'point']):
+    if not os.path.isfile(filestore):
+        raise FileNotFoundError("file %s not found" % filestore)
+    with pd.HDFStore(filestore) as store:
+        data = {name: store[name] for name in data_names if name in store}
+    return data
+
+
+def save_skeleton(skeleton, filename, path=None):
+    """ Save skeleton object as HDF5 file
+
+    Parameters
+    ----------
+    skeleton : skeleton object
+    filename: str, name of fits file
+    path: str,
+
+    TODO:: Ajouter la sauvegarde des specs.
+    """
+    warnings.warn("Skeleton object is saved without specs. ")
+    if filename[-4:] != '.hf5':
+        filename = filename + '.hf5'
+    if path is None:
+        warnings.warn("Fits file will be saved in the working directory. \
+                       Or maybe path is specify in filename...")
+        path = os.getcwd()
+
+    filestore = os.path.join(path, filename)
+
+    with pd.HDFStore(filestore) as store:
+        store.put('critical_point', skeleton.critical_point)
+        store.put('filament', skeleton.filament)
+        store.put('point', skeleton.point)
 
 
 def save_fits(image, filename, path=None):
@@ -192,9 +233,11 @@ def save_fits(image, filename, path=None):
     path: str,
     """
     hdu = fits.PrimaryHDU(image)
-    filename = filename + '.fits'
+    if filename[-5:] != '.fits':
+        filename = filename + '.fits'
     if path is None:
-        warnings.warn("Fits file will be saved in the working directory.")
+        warnings.warn("Fits file will be saved in the working directory. \
+                       Or maybe path is specify in filename...")
         path = os.getcwd()
 
     hdu.writeto(os.path.join(path, filename), overwrite=True)
@@ -203,4 +246,7 @@ def save_fits(image, filename, path=None):
 
 
 def save_vtp(skeleton):
+    """ Save skeleton as vtp format to see with Paraview software for example.
+
+    """
     return
