@@ -16,7 +16,7 @@ def flatten_tissu(datas,
     Parameters
     ----------
     datas : array, complete data set
-    training_data : array, training vector, subset of datas
+    training_data : array, training vector, subset of datas, usually correspond to cp from skeleton
     n_neighbors : int, number of neighbors to consider for each point
     n_components : int, number of coordinates for the manifold
     n_jobs : int, number of parallel jobs to run

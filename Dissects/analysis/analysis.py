@@ -1,65 +1,109 @@
 
+import warnings
 import numpy as np
-import scipy as sc
-from astropy.convolution import convolve, Tophat2DKernel
 import pandas as pd
-from segmentation.seg_2D import junction_around_cell
 
-#__all__ = ["cellstats"]
+from scipy import stats
 
-def cellstats(seg, maskfil, im, kernelsize, sigmain, scale):    
+from .segmentation.seg_2D import junction_around_cell
+from .image import dilation
+
+
+def general_analysis(image, mask, normalize=False, noise=None):
+    """ Make generale analysis on the image.
+    Measure skeleton signal and outside skeleton signal
+
+    Parameters
+    ----------
+    image : np.array, normalised image got after applying the normalise_image function.
+    mask : np.array, mask of filaments with the wanted enlargment
+    normalize: bool, default: false, if True, normalize signal with noise
+    noise_image: float, noise value to normalize image
+
+    Returns
+    -------
+    Mean and Std signal of background and skeleton
+    """
+    if normalize:
+        if noise is None:
+            warnings.warn(
+                "You need to give noise value if you want to normalize the signal.")
+            return
+        image /= noise
+
+    background_image = mask * image
+    skeleton_image = (~mask.astype(bool)) * image
+    mean_background_signal = np.mean(background_image[background_image != 0])
+    std_background_signal = np.std(background_image[background_image != 0])
+
+    mean_skeleton_signal = np.mean(skeleton_image[skeleton_image != 0])
+    std_skeleton_signal = np.std(skeleton_image[skeleton_image != 0])
+    return (mean_background_signal, std_background_signal,
+            mean_skeleton_signal, std_skeleton_signal)
+
+
+def cellstats(image, maskfil, seg, sigmain, scale):
     """
     Create a dataframe.
 
     Parameters
     ----------
+    image : numpy.array
+    The normalised image got after applying the normalise_image function.
+
+    maskfil : numpy.array
+    The mask of filaments as the wanted enlargment
+
     seg : numpy.array
     The segmented image got after applying the segmentation function.
 
-    maskfil : numpy.array
-    The mask of filaments.
-
-    im : numpy.array
-    The normalised image got after applying the normalise_image function.
-
-    kernelsize : integer
-
     sigmain : string
     The name of the signal analysed.
-    
+
     scale : integer
     The conversion number -pixel to micrometer- given by import_im
     """
-   
 
-    init = np.zeros((len(np.unique(seg)[2:]), 9))
+    columns_name = ['CellNbr',
+                    'perimeter_um',
+                    'areaCell_um2',
+                    'meanCell_' + sigmain,
+                    'stdCell_' + sigmain,
+                    'semCell_' + sigmain,
+                    'meanJunc_' + sigmain,
+                    'stdJunc_' + sigmain,
+                    'semJunc_' + sigmain
+                    ]
+    nb_cells = len(np.unique(seg)[2:])
+    init = np.zeros((nb_cells, len(columns_name)))
+
     dataframe = pd.DataFrame(data=init,
-                             columns=['CellNbr',
-                                      'perimeter_um',
-                                      'areaCell_um2',
-                                      'meanCell_' + sigmain,
-                                      'stdCell_' + sigmain,
-                                      'semCell_' + sigmain,
-                                      'meanJunc_' + sigmain,
-                                      'stdJunc_' + sigmain,
-                                      'semJunc_' + sigmain
-                                     ])
+                             columns=columns_name)
 
     for ind, i in enumerate(np.unique(seg)[2:]):
-        juncellmaski = junction_around_cell(maskfil, seg, i)
-        # enlarge through smoothing 2*KernelSize+1
-        juncellmaski_conv = convolve(juncellmaski, Tophat2DKernel(kernelsize))
-        juncellmaski_conv[np.where(juncellmaski_conv != 0)] = 1
-        dataframe['CellNbr'][ind] = i
-        dataframe['perimeter_um'][ind] = len(np.where(juncellmaski == 1)[0])/scale
-        dataframe['areaCell_um2'][ind] = len(np.where(seg == i)[0])/scale**2
-        dataframe['meanCell_' + sigmain][ind] = np.mean(im[np.where(seg == i)])
-        dataframe['stdCell_' + sigmain][ind] = np.std(im[np.where(seg == i)])
-        dataframe['semCell_' + sigmain][ind] = sc.stats.sem(im[np.where(seg == i)])
-        
-        dataframe['meanJunc_' + sigmain][ind] = np.mean(im[np.where(juncellmaski_conv != 0)])
-        dataframe['stdJunc_' + sigmain][ind] = np.std(im[np.where(juncellmaski_conv != 0)])
-        dataframe['semJunc_' + sigmain][ind] = sc.stats.sem(im[np.where(juncellmaski_conv != 0)])
-        
+        dataframe.loc[ind]['CellNbr'] = i
+
+        cell_junction = junction_around_cell(maskfil, seg, i)
+        cell_junction_enlarge = dilation(cell_junction, width=1)
+
+        image_cell = image[np.where(seg == i)]
+        image_cell_junction = image[np.where(cell_junction_enlarge != 0)]
+
+        dataframe.loc[ind]['perimeter_um'] = len(
+            np.where(cell_junction == 1)[0]) / scale
+        dataframe.loc[ind]['areaCell_um2'] = len(
+            np.where(seg == i)[0]) / scale**2
+
+        # Cytoplasm signal
+        dataframe.loc[ind]['meanCell_' + sigmain] = np.mean(image_cell)
+        dataframe.loc[ind]['stdCell_' + sigmain] = np.std(image_cell)
+        dataframe.loc[ind]['semCell_' + sigmain] = stats.sem(image_cell)
+
+        # Junction signal
+        dataframe.loc[ind]['meanJunc_' +
+                           sigmain] = np.mean(image_cell_junction)
+        dataframe.loc[ind]['stdJunc_' + sigmain] = np.std(image_cell_junction)
+        dataframe.loc[ind]['semJunc_' +
+                           sigmain] = stats.sem(image_cell_junction)
 
     return dataframe

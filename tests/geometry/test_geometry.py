@@ -33,6 +33,6 @@ def test_remove_free_filament():
 
     skel.remove_free_filament()
 
-    assert skel.critical_point.shape[0] == 2667
+    assert skel.critical_point.shape[0] == 2827
     assert skel.filament.shape[0] == 2824
     assert skel.point.shape[0] == 13969

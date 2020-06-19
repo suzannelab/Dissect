@@ -41,5 +41,8 @@ Remove `fil_dilation` which to the same as `dilation` function.
 Remove `xyz_from_array` which can be done with `x,y,z = np.where(image>0)`. 
 Remove `create_df_from_skeleton` since we load NDskl skeleton as `Skeleton` object. 
 
+## Analysis
+Add `general_analysis` function, which measure signal mean and std of background and skeleton signal. 
+
 
 

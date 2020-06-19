@@ -56,7 +56,7 @@ def dilation(mask, width=2):
     if width == 0:
         return mask
     mask = ~mask.astype(bool)
-    selem = np.ones(np.repeat(width, len(mask.shape)))
+    selem = np.ones(np.repeat(2 * width + 1, len(mask.shape)))
     return (~binary_dilation(mask, selem=selem)).astype(int)
 
 
