@@ -20,3 +20,4 @@ dependencies:
 - vispy
 - mayavi
 - astropy
+- ExifRead
