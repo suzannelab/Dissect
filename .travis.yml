@@ -7,13 +7,12 @@ before_install:
   - sudo apt-get install libcgal-dev libcgal-qt5-dev
   - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
   - bash miniconda.sh -b -p $HOME/miniconda
-  - export PATH="$HOME/miniconda/bin:$PATH"
+  - source "$HOME/miniconda/etc/profile.d/conda.sh"
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
-  - conda init bash
   - conda info -a
   - conda env create -q -f environment.yml
-  - source activate dissects
+  - conda activate dissects
   - conda install pytest pytest-cov
   - pip install coveralls nbval
 
