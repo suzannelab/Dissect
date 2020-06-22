@@ -48,3 +48,7 @@ def test_load_skeleton():
 
 def test_save_skeleton():
     return
+
+
+def test_save_vtp():
+    return

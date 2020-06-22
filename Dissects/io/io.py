@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from skimage.io import imread, imsave
+from tvtk.api import tvtk
 from astropy.io import fits
 
 
@@ -257,8 +258,7 @@ def save_image(image_array, filename, path=None):
     if filename[-4:] != '.tif':
         filename = filename + '.tif'
     if path is None:
-        warnings.warn("Fits file will be saved in the working directory. \
-                       Or maybe path is specify in filename...")
+        warnings.warn("Fits file will be saved in the working directory.")
         path = os.getcwd()
 
     filepath = os.path.join(path, filename)
@@ -267,8 +267,63 @@ def save_image(image_array, filename, path=None):
     logging.info('Saved file: {filename} into {path} directory')
 
 
-def save_vtp(skeleton):
+def save_vtp(skeleton, filename, path=None):
     """ Save skeleton as vtp format to see with Paraview software for example.
 
+    Parameters
+    ----------
+    skeleton:
+    filename: str, name of fits file
+    path: str,
+    TODO:: Add annexe information into the vtp file.
     """
-    return
+
+    if filename[-4:] != '.vtp':
+        filename = filename + '.vtp'
+    if path is None:
+        warnings.warn('VTP file will be saved in the working directory.')
+        path = os.getcwd()
+
+    filepath = os.path.join(path, filename)
+
+    # get number of critical poin
+    nb_points = skeleton.critical_point.shape[0] + skeleton.point.shape[0]
+
+    points = np.zeros((nb_points, skeleton.specs['ndims']))
+    verts = np.arange(skeleton.critical_point.shape[0])[:, np.newaxis]
+    lines = []
+
+    points[:skeleton.critical_point.shape[0], ] = skeleton.critical_point[
+        list('xyz')[:skeleton.specs['ndims']]]
+    start = skeleton.critical_point.shape[0]
+    points_id = 1
+    for i, info in skeleton.filament.iterrows():
+        end = start + info.nsamp - 1
+        points[start:end, ] = skeleton.point[points_id: points_id +
+                                             info.nsamp - 1][list('xyz')[:skeleton.specs['ndims']]]
+
+        line = [info.cp1]
+        line.extend(list(range(start, end)))
+        line.append(info.cp2)
+        lines.append(line)
+
+        points_id += info.nsamp
+        start = end + 1
+
+    # vtp need points in 3D, add z plane to 0 for 2D datas.
+    if skeleton.specs['ndims'] == 2:
+        points = np.concatenate(
+            (points, np.zeros((points.shape[0]))[:, np.newaxis]), axis=1)
+
+    vtp_file = tvtk.PolyData(points=points, verts=verts, lines=lines)
+
+    # Add informations
+
+
+
+    v = tvtk.XMLPolyDataWriter()
+    v.set_input_data(vtp_file)
+    v.file_name = filepath
+    v.write()
+
+    logging.info('Saved file: {filepath}')
