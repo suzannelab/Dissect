@@ -14,7 +14,7 @@ URL = ''
 LICENSE = 'MPL-2.0'
 DOWNLOAD_URL = ''
 
-files = ['notebooks/*.*', 'data/*.*']
+files = ['notebooks/*.*', 'data/*.*', "stores/*.*"]
 
 ## Version management copied form numpy
 ## Thanks to them!
