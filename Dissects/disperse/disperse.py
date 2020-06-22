@@ -31,13 +31,14 @@ def run_disperse(imfile, cut, MSC=False):
     else:
         raise ValueError('mse did not work')
 
-
+    command_rmFITS = 'rm '+ imfile + ccut + '.up.NDskl.fits'
     command_toFITS = 'skelconv ' + imfile + ccut + '.up.NDskl -outDir ' + os.path.dirname(imfile) + ' -toFITS'
 
     command_ascii = 'skelconv ' + imfile + ccut + '.up.NDskl -outDir ' + os.path.dirname(imfile) + ' -to NDskl_ascii'
 
     print('')
     print('skelconv ran with : ',command_toFITS)
+    os.system(command_rmFITS)
     os.system(command_toFITS)
     print('')
     print('skelconv ran with : ',command_ascii)
