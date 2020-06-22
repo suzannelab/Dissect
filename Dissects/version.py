@@ -1,5 +1,5 @@
 
-# THIS FILE IS GENERATED FROM tyssue SETUP.PY
+# THIS FILE IS GENERATED FROM Dissects SETUP.PY
 #
 short_version = '0.0.1'
 version = '0.0.1'
