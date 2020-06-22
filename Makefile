@@ -7,7 +7,7 @@ test:
 	cd tests && pytest . && cd ..
 
 coverage:
-	cd tests &&  pytest --cov=Dissects --cov-config=../.coveragerc . && mv .coverage .. && cd ..
+	cd tests &&  pytest --cov=Dissects . && mv .coverage .. && cd ..
 
 nbtest:
 	cd doc/notebooks && pytest --nbval-lax && cd ../..
