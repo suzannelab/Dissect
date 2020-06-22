@@ -1,0 +1,22 @@
+name: dissects
+channels:
+- conda-forge
+
+dependencies:
+- boost-cpp
+- mpfr
+- python>=3.6
+- numpy
+- scipy
+- matplotlib
+- pandas
+- pytables
+- jupyter
+- notebook
+- quantities
+- ipywidgets
+- pythreejs
+- ipyvolume
+- vispy
+- mayavi
+- astropy
