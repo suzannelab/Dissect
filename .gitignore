@@ -12,7 +12,6 @@ dist
 
 # Extension
 *.csv
-*.tif
 *.eps *.avi
 *.png
 *.pyc # python precompalied
