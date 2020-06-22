@@ -13,7 +13,6 @@ before_install:
   - conda init bash
   - conda info -a
   - conda env create -q -f environment.yml
-  - source activate Dissects
   - conda install pytest pytest-cov
   - pip install coveralls nbval
 
