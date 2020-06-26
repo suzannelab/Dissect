@@ -1,22 +1,17 @@
-
-# comment
 import numpy as np
-from astropy.convolution import convolve, Box2DKernel
 from skimage import morphology, filters
-import scipy
+from skimage import segmentation as ski_seg
 from scipy import ndimage as ndi
 
 
-def segmentation(inv_maskfil, min_area=None):
+def segmentation(mask, min_area=None):
     """
     Segment the cells of the image.
 
     Paramaters
     ----------
-    inv_maskfil: np.array
-        The mask filaments = 0 and cells = 1
-    mean_area: integer
-        minimum number of pixels of a cell
+    mask: np.array, filament=0 and background=1
+    mean_area: integer, minimum number of pixels of a cell
     Return
     ------
     segmentation: np.array
@@ -24,12 +19,12 @@ def segmentation(inv_maskfil, min_area=None):
         Pixels of the background = 1
         Pixels of cell i = i
     """
-    edges = filters.sobel(inv_maskfil)
-    markers = np.zeros_like(inv_maskfil)
-    markers[inv_maskfil == 0] = 1
-    markers[inv_maskfil > 0] = 2
+    edges = filters.sobel(mask)
+    markers = np.zeros_like(mask)
+    markers[mask == 0] = 1
+    markers[mask > 0] = 2
 
-    segmentation = morphology.watershed(edges, markers)
+    segmentation = ski_seg.watershed(edges, markers)
     segmentation, _ = ndi.label(segmentation == 2)
     if min_area is not None:
         segmentation = morphology.remove_small_objects(segmentation, min_area)
@@ -37,13 +32,12 @@ def segmentation(inv_maskfil, min_area=None):
     return segmentation
 
 
-def junction_around_cell(maskfil, seg, cell):
+def junction_around_cell(mask, seg, cell):
     """Find junctions around cell i.
 
     Parameters
     ----------
-    maskfil: np.array
-        filament = 1, cells and background = 0
+    maskfil: np.array, filament=0 and background=1
     seg: np.array
         output of the segmentation function
     cell: integer
@@ -57,15 +51,8 @@ def junction_around_cell(maskfil, seg, cell):
     """
     segmentationi = np.zeros_like(seg)
     segmentationi[np.where(seg == cell)] = 1
-    '''
-    # Box smooth around unique cell + multiply by MaskFil to have pixel
-    # filaments
-    width=2
-    kernel=Box2DKernel(width)
-    JuncCelli=(convolve(segmentationi, kernel) *
-                 maskfil).astype(bool).astype(int)
-    '''
 
-    juncelli = scipy.ndimage.binary_dilation(segmentationi).astype(segmentationi.dtype) * maskfil
+    juncelli = (ndi.binary_dilation(segmentationi).astype(
+        segmentationi.dtype) * np.invert(mask))
 
     return juncelli

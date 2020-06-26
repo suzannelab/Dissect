@@ -1,0 +1,24 @@
+# need to check minimal version
+numpy
+scipy
+matplotlib
+pandas >= 0.24
+pytables
+jupyter
+notebook
+opencv
+skimage
+astropy
+exifread
+logging
+warnings
+re
+os
+mayavi (tvtk)
+
+
+# Need to be verify
+quantities
+ipywidgets
+pythreejs
+ipyvolume

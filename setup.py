@@ -14,7 +14,7 @@ URL = ''
 LICENSE = 'MPL-2.0'
 DOWNLOAD_URL = ''
 
-files = ['notebooks/*.*', 'data/*.*']
+files = ['notebooks/*.*', 'data/*.*', "stores/*.*"]
 
 ## Version management copied form numpy
 ## Thanks to them!
@@ -51,7 +51,7 @@ def git_version():
 
 def get_version_info():
     # Adding the git rev number needs to be done inside write_version_py(),
-    # otherwise the import of tyssue.version messes up the build under Python 3.
+    # otherwise the import of dissect.version messes up the build under Python 3.
     FULLVERSION = VERSION
     if os.path.exists('.git'):
         GIT_REVISION = git_version()
@@ -74,7 +74,7 @@ def get_version_info():
 
 def write_version_py(filename='Dissects/version.py'):
     cnt = """
-# THIS FILE IS GENERATED FROM tyssue SETUP.PY
+# THIS FILE IS GENERATED FROM Dissects SETUP.PY
 #
 short_version = '%(version)s'
 version = '%(version)s'
