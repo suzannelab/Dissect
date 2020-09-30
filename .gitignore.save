@@ -1,0 +1,25 @@
+
+
+# Package 
+build
+_build
+*.egg
+*.egg-info
+bin
+lib 
+dist 
+
+
+# Extension
+*.csv
+*.tif
+.eps *.avi
+*.png
+*.pyc # python precompalied
+
+
+*.ipynb_checkpoints
+build/
+dist/
+__pycache__/
+
