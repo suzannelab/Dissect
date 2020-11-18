@@ -84,7 +84,8 @@ def cellstats(image, maskfil, seg, sigmain, scale):
         dataframe.loc[ind]['CellNbr'] = i
 
         cell_junction = junction_around_cell(maskfil, seg, i)
-        cell_junction_enlarge = dilation(cell_junction, width=1)
+        cell_junction_enlarge_inv = dilation((~cell_junction.astype(bool)).astype(int), width=1)
+        cell_junction_enlarge = (~cell_junction_enlarge_inv.astype(bool)).astype(int)
 
         image_cell = image[np.where(seg == i)]
         image_cell_junction = image[np.where(cell_junction_enlarge != 0)]
