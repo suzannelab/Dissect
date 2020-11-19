@@ -83,12 +83,12 @@ def cellstats(image, maskfil, seg, sigmain, scale):
     for ind, i in enumerate(np.unique(seg)[2:]):
         dataframe.loc[ind]['CellNbr'] = i
 
-        cell_junction = junction_around_cell(maskfil, seg, i)
-        cell_junction_enlarge_inv = dilation((~cell_junction.astype(bool)).astype(int), width=1)
-        cell_junction_enlarge = (~cell_junction_enlarge_inv.astype(bool)).astype(int)
+        cell_junction = junction_around_cell(mask, seg, i)
+        cell_junction_enlarge = ndi.binary_dilation(cell_junction)
 
         image_cell = image[np.where(seg == i)]
         image_cell_junction = image[np.where(cell_junction_enlarge != 0)]
+
 
         dataframe.loc[ind]['perimeter_um'] = len(
             np.where(cell_junction == 1)[0]) / scale
