@@ -2,7 +2,7 @@ import numpy as np
 from skimage import morphology, filters
 from skimage import segmentation as ski_seg
 from scipy import ndimage as ndi
-
+from skimage.morphology import binary_dilation
 
 def segmentation(mask, min_area=None):
     """
@@ -52,7 +52,7 @@ def junction_around_cell(mask, seg, cell):
     segmentationi = np.zeros_like(seg)
     segmentationi[np.where(seg == cell)] = 1
 
-    juncelli = (binary_dilation(segmentationi).astype(
+    juncelli = (ndi.binary_dilation(segmentationi).astype(
         segmentationi.dtype) * (~mask.astype(bool)).astype(int))
 
     return juncelli
