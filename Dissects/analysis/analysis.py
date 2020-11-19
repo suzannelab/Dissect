@@ -5,8 +5,8 @@ import pandas as pd
 
 from scipy import stats
 
-from .segmentation.seg_2D import junction_around_cell
-from .image import dilation
+from Dissects.segmentation.seg_2D import junction_around_cell
+from Dissects.image import dilation
 
 
 def general_analysis(image, mask, normalize=False, noise=None):

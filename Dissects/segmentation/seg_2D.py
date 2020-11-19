@@ -53,6 +53,6 @@ def junction_around_cell(mask, seg, cell):
     segmentationi[np.where(seg == cell)] = 1
 
     juncelli = (ndi.binary_dilation(segmentationi).astype(
-        segmentationi.dtype) * np.invert(mask))
+        segmentationi.dtype) * (~mask.astype(bool)).astype(int))
 
     return juncelli
