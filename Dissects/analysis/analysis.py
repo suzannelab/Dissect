@@ -4,10 +4,10 @@ import numpy as np
 import pandas as pd
 
 from scipy import stats
-
+from skimage.morphology import binary_dilation
 from Dissects.segmentation.seg_2D import junction_around_cell
 from Dissects.image import dilation
-
+from scipy import ndimage as ndi
 
 def general_analysis(image, mask, normalize=False, noise=None):
     """ Make generale analysis on the image.
@@ -42,7 +42,7 @@ def general_analysis(image, mask, normalize=False, noise=None):
             mean_skeleton_signal, std_skeleton_signal)
 
 
-def cellstats(image, maskfil, seg, sigmain, scale):
+def cellstats(image, mask, seg, sigmain, scale):
     """
     Create a dataframe.
 
@@ -51,7 +51,7 @@ def cellstats(image, maskfil, seg, sigmain, scale):
     image : numpy.array
     The normalised image got after applying the normalise_image function.
 
-    maskfil : numpy.array
+    mask : numpy.array
     The mask of filaments as the wanted enlargment
 
     seg : numpy.array
