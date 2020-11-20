@@ -89,8 +89,13 @@ def cellstats(image, mask, N, seg, sigmain, scale):
         cell_junction = junction_around_cell(mask, seg, i)
         cell_junction_enlarge = dilation(cell_junction, N)
 
-        image_cell = image[np.where(seg == i)]
+        image_cell_mask = np.zeros_like(image)
+        image_cell_mask[np.where(seg == i)] = 1
+        image_cell_reduced = image_cell_mask * (~cell_junction_enlarge.astype(bool)).astype(int)
+
+
         image_cell_junction = image[np.where(cell_junction_enlarge != 0)]
+        image_cell = image[np.where(image_cell_reduced != 0)]
 
 
         dataframe.loc[ind]['perimeter_um'] = len(
