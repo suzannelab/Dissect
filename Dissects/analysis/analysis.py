@@ -30,9 +30,9 @@ def general_analysis(image, mask, normalize=False, noise=None):
                 "You need to give noise value if you want to normalize the signal.")
             return
         image /= noise
-
-    background_image = mask * image
-    skeleton_image = (~mask.astype(bool)) * image
+    mask_inv = (~mask.astype(bool)).astype(int)
+    background_image = mask_inv * image
+    skeleton_image = mask * image
     mean_background_signal = np.mean(background_image[background_image != 0])
     std_background_signal = np.std(background_image[background_image != 0])
 

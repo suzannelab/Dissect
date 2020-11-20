@@ -21,8 +21,8 @@ def segmentation(mask, min_area=None):
     """
     edges = filters.sobel(mask)
     markers = np.zeros_like(mask)
-    markers[mask == 0] = 1
-    markers[mask > 0] = 2
+    markers[mask == 0] = 2
+    markers[mask > 0] = 1
 
     segmentation = ski_seg.watershed(edges, markers)
     segmentation, _ = ndi.label(segmentation == 2)
@@ -53,6 +53,6 @@ def junction_around_cell(mask, seg, cell):
     segmentationi[np.where(seg == cell)] = 1
 
     juncelli = (ndi.binary_dilation(segmentationi).astype(
-        segmentationi.dtype) * (~mask.astype(bool)).astype(int))
+        segmentationi.dtype) * mask)
 
     return juncelli
