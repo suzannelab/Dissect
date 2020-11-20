@@ -50,14 +50,13 @@ def dilation(mask, width=2):
 
     Parameters
     ----------
-    mask:
+    mask: nd.array, with the background set to 0 and the foreground to 1
     width: int, size of the dilation.
     """
     if width == 0:
         return mask
-    mask = ~mask.astype(bool)
     selem = np.ones(np.repeat(2 * width + 1, len(mask.shape)))
-    return (~binary_dilation(mask, selem=selem)).astype(int)
+    return (binary_dilation(mask, selem=selem)).astype(int)
 
 
 from astropy.convolution import convolve, Tophat2DKernel
