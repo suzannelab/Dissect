@@ -10,7 +10,7 @@ def segmentation(mask, min_area=None):
 
     Paramaters
     ----------
-    mask: np.array, filament=0 and background=1
+    mask: np.array, filament=1 and background=0
     mean_area: integer, minimum number of pixels of a cell
     Return
     ------
@@ -37,7 +37,7 @@ def junction_around_cell(mask, seg, cell):
 
     Parameters
     ----------
-    maskfil: np.array, filament=0 and background=1
+    mask: np.array, filament=1 and background=0
     seg: np.array
         output of the segmentation function
     cell: integer
