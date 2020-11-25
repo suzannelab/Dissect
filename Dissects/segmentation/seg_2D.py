@@ -2,7 +2,7 @@ import numpy as np
 from skimage import morphology, filters
 from skimage import segmentation as ski_seg
 from scipy import ndimage as ndi
-
+from skimage.morphology import binary_dilation
 
 def segmentation(mask, min_area=None):
     """
@@ -10,7 +10,7 @@ def segmentation(mask, min_area=None):
 
     Paramaters
     ----------
-    mask: np.array, filament=0 and background=1
+    mask: np.array, filament=1 and background=0
     mean_area: integer, minimum number of pixels of a cell
     Return
     ------
@@ -21,8 +21,8 @@ def segmentation(mask, min_area=None):
     """
     edges = filters.sobel(mask)
     markers = np.zeros_like(mask)
-    markers[mask == 0] = 1
-    markers[mask > 0] = 2
+    markers[mask == 0] = 2
+    markers[mask > 0] = 1
 
     segmentation = ski_seg.watershed(edges, markers)
     segmentation, _ = ndi.label(segmentation == 2)
@@ -37,7 +37,7 @@ def junction_around_cell(mask, seg, cell):
 
     Parameters
     ----------
-    maskfil: np.array, filament=0 and background=1
+    mask: np.array, filament=1 and background=0
     seg: np.array
         output of the segmentation function
     cell: integer
@@ -53,6 +53,6 @@ def junction_around_cell(mask, seg, cell):
     segmentationi[np.where(seg == cell)] = 1
 
     juncelli = (ndi.binary_dilation(segmentationi).astype(
-        segmentationi.dtype) * np.invert(mask))
+        segmentationi.dtype) * mask)
 
     return juncelli

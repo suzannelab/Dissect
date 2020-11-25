@@ -4,10 +4,10 @@ import numpy as np
 import pandas as pd
 
 from scipy import stats
-
-from .segmentation.seg_2D import junction_around_cell
-from .image import dilation
-
+from skimage.morphology import binary_dilation
+from Dissects.segmentation.seg_2D import junction_around_cell
+from Dissects.image import dilation
+from scipy import ndimage as ndi
 
 def general_analysis(image, mask, normalize=False, noise=None):
     """ Make generale analysis on the image.
@@ -30,9 +30,9 @@ def general_analysis(image, mask, normalize=False, noise=None):
                 "You need to give noise value if you want to normalize the signal.")
             return
         image /= noise
-
-    background_image = mask * image
-    skeleton_image = (~mask.astype(bool)) * image
+    mask_inv = (~mask.astype(bool)).astype(int)
+    background_image = mask_inv * image
+    skeleton_image = mask * image
     mean_background_signal = np.mean(background_image[background_image != 0])
     std_background_signal = np.std(background_image[background_image != 0])
 
@@ -42,7 +42,7 @@ def general_analysis(image, mask, normalize=False, noise=None):
             mean_skeleton_signal, std_skeleton_signal)
 
 
-def cellstats(image, maskfil, seg, sigmain, scale):
+def cellstats(image, mask, N, seg, sigmain, scale):
     """
     Create a dataframe.
 
@@ -51,8 +51,11 @@ def cellstats(image, maskfil, seg, sigmain, scale):
     image : numpy.array
     The normalised image got after applying the normalise_image function.
 
-    maskfil : numpy.array
+    mask : numpy.array
     The mask of filaments as the wanted enlargment
+
+    N: integer
+    (2*N+1) is the width of the junction
 
     seg : numpy.array
     The segmented image got after applying the segmentation function.
@@ -83,11 +86,17 @@ def cellstats(image, maskfil, seg, sigmain, scale):
     for ind, i in enumerate(np.unique(seg)[2:]):
         dataframe.loc[ind]['CellNbr'] = i
 
-        cell_junction = junction_around_cell(maskfil, seg, i)
-        cell_junction_enlarge = dilation(cell_junction, width=1)
+        cell_junction = junction_around_cell(mask, seg, i)
+        cell_junction_enlarge = dilation(cell_junction, N)
 
-        image_cell = image[np.where(seg == i)]
+        image_cell_mask = np.zeros_like(image)
+        image_cell_mask[np.where(seg == i)] = 1
+        image_cell_reduced = image_cell_mask * (~cell_junction_enlarge.astype(bool)).astype(int)
+
+
         image_cell_junction = image[np.where(cell_junction_enlarge != 0)]
+        image_cell = image[np.where(image_cell_reduced != 0)]
+
 
         dataframe.loc[ind]['perimeter_um'] = len(
             np.where(cell_junction == 1)[0]) / scale
