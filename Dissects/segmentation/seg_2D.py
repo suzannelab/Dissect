@@ -1,8 +1,11 @@
 import numpy as np
+import pandas as pd
 from skimage import morphology, filters
 from skimage import segmentation as ski_seg
 from scipy import ndimage as ndi
 from skimage.morphology import binary_dilation
+from Dissects.image import thinning
+from Dissects.image import dilation
 
 def segmentation(mask, min_area=None):
     """
@@ -59,7 +62,7 @@ def junction_around_cell(mask, seg, cell):
 
 def vertices(mask):
 
-    thinmask = thinning(mask)
+    thinmask = thinning(mask, 1)
     seg0 = segmentation(thinmask, 0)
     image_vertex = np.zeros_like(mask)
 
