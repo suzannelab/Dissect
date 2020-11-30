@@ -56,3 +56,56 @@ def junction_around_cell(mask, seg, cell):
         segmentationi.dtype) * mask)
 
     return juncelli
+
+def vertices(mask, seg):
+
+    image_vertex = np.zeros_like(mask)
+
+    for i in range(1, np.unique(seg0)[-1]+1):
+
+
+        image_cell_mask_i = np.zeros_like(mask)
+        image_cell_mask_i[np.where(seg2 == i)] = 1
+        seg_dilate_i = dilation(image_cell_mask_i, 1)
+
+        image_vertex = image_vertex + seg_dilate_i
+
+    list_vertices = np.where(image_vertex >= 3) #Récupération des vextex 'simples'
+
+
+    columns_name = ['x_0',
+                    'y_0',
+	            'Cell_1',
+		    'Cell_2',
+	            'Cell_3',
+	            'Cell_4',
+		    'Cell_5']
+
+    nb_vertices = len(list_vertices[0])
+    init = np.zeros((nb_vertices , len(columns_name)))
+
+    df_vertices = pd.DataFrame(data=init, columns=columns_name)
+
+    for v in range(0, len(list_vertices[0])):
+        df_vertices.loc[v]['x_0'] = list_vertices[0][v]
+        df_vertices.loc[v]['y_0'] = list_vertices[1][v]
+
+        carre = seg0[list_vertices[0][v]-3 : list_vertices[0][v]+4, list_vertices[1][v]-3 : list_vertices[1][v]+4]
+        cells = np.unique(carre)
+
+        df_vertices.loc[v]['Cell_1'] = cells[1]
+        df_vertices.loc[v]['Cell_2'] = cells[2]
+        df_vertices.loc[v]['Cell_3'] = cells[3]
+
+        if len(np.unique(carre)) == 4 :
+            df_vertices.loc[v]['Cell_4'] = 'Nan'
+            df_vertices.loc[v]['Cell_5'] = 'Nan'
+        if len(np.unique(carre)) == 5 :
+            df_vertices.loc[v]['Cell_4'] = cells[4]
+            df_vertices.loc[v]['Cell_5'] = 'Nan'
+        if len(np.unique(carre)) == 6 :
+            df_vertices.loc[v]['Cell_4'] = cells[4]
+            df_vertices.loc[v]['Cell_5'] = cells[5]
+
+
+    return image_vertex, list_vertices, df_vertices

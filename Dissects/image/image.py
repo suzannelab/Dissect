@@ -59,6 +59,20 @@ def dilation(mask, width=2):
     return (binary_dilation(mask, selem=selem)).astype(int)
 
 
+def thinning(mask, width=1):
+    """ Thin the mask by suppressing to the mask the result of erosion function
+
+    Parameters
+    ----------
+    mask: nd.array, with the background set to 0 and the foreground to 1
+    width: int, size of the erosion.
+    """
+    width = np.ones((2,2),np.uint8)
+    erosion = cv2.erode(mask.astype(np.uint8), width, iterations = 1)
+
+    return mask - erosion
+
+
 from astropy.convolution import convolve, Tophat2DKernel
 from skimage import filters as filters
 
