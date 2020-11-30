@@ -2,6 +2,7 @@ import warnings
 import numpy as np
 import scipy as sc
 from skimage.morphology import binary_dilation
+import cv2
 
 
 def z_project(image, method='max', n=None, metadata=None):
