@@ -57,15 +57,17 @@ def junction_around_cell(mask, seg, cell):
 
     return juncelli
 
-def vertices(mask, seg):
+def vertices(mask):
 
     image_vertex = np.zeros_like(mask)
 
-    for i in range(1, np.unique(seg0)[-1]+1):
+    seg = segmentation(mask, 0)
+
+    for i in range(1, np.unique(seg)[-1]+1):
 
 
         image_cell_mask_i = np.zeros_like(mask)
-        image_cell_mask_i[np.where(seg2 == i)] = 1
+        image_cell_mask_i[np.where(seg == i)] = 1
         seg_dilate_i = dilation(image_cell_mask_i, 1)
 
         image_vertex = image_vertex + seg_dilate_i
@@ -73,14 +75,14 @@ def vertices(mask, seg):
     list_vertices = np.where(image_vertex >= 3) #Récupération des vextex 'simples'
 
 
-    columns_name = ['x_0',
-                    'y_0',
-	            'Cell_1',
-		    'Cell_2',
-	            'Cell_3',
-	            'Cell_4',
-		    'Cell_5']
 
+    columns_name = ['x_0',
+                'y_0',
+                'Cell_1',
+                'Cell_2',
+                'Cell_3',
+                'Cell_4',
+                'Cell_5']
     nb_vertices = len(list_vertices[0])
     init = np.zeros((nb_vertices , len(columns_name)))
 
@@ -108,4 +110,6 @@ def vertices(mask, seg):
             df_vertices.loc[v]['Cell_5'] = cells[5]
 
 
+
     return image_vertex, list_vertices, df_vertices
+
