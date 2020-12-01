@@ -60,7 +60,7 @@ def dilation(mask, width=2):
     return (binary_dilation(mask, selem=selem)).astype(int)
 
 
-def thinning(mask, width=1):
+def thinning(mask, width=2):
     """ Thin the mask by suppressing to the mask the result of erosion function
 
     Parameters
@@ -68,8 +68,8 @@ def thinning(mask, width=1):
     mask: nd.array, with the background set to 0 and the foreground to 1
     width: int, size of the erosion.
     """
-    width = np.ones((2,2),np.uint8)
-    erosion = cv2.erode(mask.astype(np.uint8), width, iterations = 1)
+    kernel = np.ones((width,width),np.uint8)
+    erosion = cv2.erode(mask.astype(np.uint8), kernel, iterations = 1)
 
     return mask - erosion
 
