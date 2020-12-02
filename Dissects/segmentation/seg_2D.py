@@ -61,6 +61,22 @@ def junction_around_cell(mask, seg, cell):
     return juncelli
 
 def vertices(mask):
+    """Find the vertices (nodes) of the skeleton
+
+    Parameters
+    ----------
+    mask: np.array, filament=1 and background=0
+
+    Returns
+    -------
+    image_vertex: np.array where cells=1, junctions=2, vertices >=3
+    list_vertices: list of the vertices
+    df_vertices: dataframe with for each vertex x_0: x coordinate of the vertex
+						y_0: y coordinate of the vertex
+						Cell_i: the cells connected to the vertex
+				
+
+    """
 
     thinmask = thinning(mask, 1)
     seg0 = segmentation(thinmask, 0)
@@ -160,8 +176,25 @@ def vertices(mask):
 
 
 
-#Création d'un DataFrame de jonctions
 def junctions(list_vertices, df_vertices):
+    """Create a dataframe of the cell junctions
+
+    Parameters
+    ----------
+    list_vertices: list of the vertices given by the 'vertices' function
+    df_vertices: dataframe given by the 'vertices' function
+
+    Returns
+    -------
+    df_junction: dataframe with Cell1: first cell of the junction
+    				Cell2: second cell of the junction
+                                x0: x coordinate of the startpoint of the junction
+                                y0: y coordinate of the startpoint of the junction
+                                x1: x coordinate of the endpoint of the junction 
+                                y1: y coordinate of the endpoint of the junction
+                                angle: angle between the horozintal plane and the junction
+                                lenght: lenght of the junction
+    """
 
     columns_name = ['x_0',
                     'y_0',
