@@ -2,6 +2,7 @@ import warnings
 import numpy as np
 import scipy as sc
 from skimage.morphology import binary_dilation
+import cv2
 
 
 def z_project(image, method='max', n=None, metadata=None):
@@ -57,6 +58,20 @@ def dilation(mask, width=2):
         return mask
     selem = np.ones(np.repeat(2 * width + 1, len(mask.shape)))
     return (binary_dilation(mask, selem=selem)).astype(int)
+
+
+def thinning(mask, width=2):
+    """ Thin the mask by suppressing to the mask the result of erosion function
+
+    Parameters
+    ----------
+    mask: nd.array, with the background set to 0 and the foreground to 1
+    width: int, size of the erosion.
+    """
+    kernel = np.ones((width,width),np.uint8)
+    erosion = cv2.erode(mask.astype(np.uint8), kernel, iterations = 1)
+
+    return mask - erosion
 
 
 from astropy.convolution import convolve, Tophat2DKernel
