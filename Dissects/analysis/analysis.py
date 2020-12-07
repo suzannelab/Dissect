@@ -9,6 +9,7 @@ from Dissects.segmentation.seg_2D import junction_around_cell
 from Dissects.image import dilation
 from scipy import ndimage as ndi
 
+
 def general_analysis(image, mask, normalize=False, noise=None):
     """ Make generale analysis on the image.
     Measure skeleton signal and outside skeleton signal
@@ -30,8 +31,7 @@ def general_analysis(image, mask, normalize=False, noise=None):
                 "You need to give noise value if you want to normalize the signal.")
             return
         image /= noise
-    mask_inv = (~mask.astype(bool)).astype(int)
-    background_image = mask_inv * image
+    background_image = (1 - mask) * image
     skeleton_image = mask * image
     mean_background_signal = np.mean(background_image[background_image != 0])
     std_background_signal = np.std(background_image[background_image != 0])
@@ -91,12 +91,11 @@ def cellstats(image, mask, N, seg, sigmain, scale):
 
         image_cell_mask = np.zeros_like(image)
         image_cell_mask[np.where(seg == i)] = 1
-        image_cell_reduced = image_cell_mask * (~cell_junction_enlarge.astype(bool)).astype(int)
-
+        image_cell_reduced = image_cell_mask * \
+            (~cell_junction_enlarge.astype(bool)).astype(int)
 
         image_cell_junction = image[np.where(cell_junction_enlarge != 0)]
         image_cell = image[np.where(image_cell_reduced != 0)]
-
 
         dataframe.loc[ind]['perimeter_um'] = len(
             np.where(cell_junction == 1)[0]) / scale

@@ -119,23 +119,23 @@ class Skeleton():
 
         Returns
         -------
-        binary_image: np.array, filament=0 and background=1
+        binary_image: np.array, background set to 0 and foreground set to 1
         """
-        binary_image = np.ones((self.specs['bbox_delta']).astype(int))
+        binary_image = np.zeros((self.specs['bbox_delta']).astype(int))
         for i, coord in self.critical_point[list('xyz')[:self.specs['ndims']]].iterrows():
             if self.specs["ndims"] == 2:
                 binary_image[coord.astype(int)[0], coord.astype(int)[
-                    1]] = 0
+                    1]] = 1
             else:
                 binary_image[coord.astype(int)[0], coord.astype(int)[
-                    1], coord.astype(int)[2]] = 0
+                    1], coord.astype(int)[2]] = 1
 
         for i, coord in self.point[list('xyz')[:self.specs['ndims']]].iterrows():
             if self.specs['ndims'] == 2:
                 binary_image[coord.astype(int)[0], coord.astype(int)[
-                    1]] = 0
+                    1]] = 1
             else:
                 binary_image[coord.astype(int)[0], coord.astype(int)[
-                    1], coord.astype(int)[2]] = 0
+                    1], coord.astype(int)[2]] = 1
 
         return binary_image.T
