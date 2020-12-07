@@ -128,7 +128,6 @@ def vertices(mask, seg=None, dilation_width=1):
 
     ind = 0
     while ind < len(df_vertices):
-        # print(df_vertices.shape[0])
         cells_ind = np.array([df_vertices['Cell_1'].iloc[ind],
                               df_vertices['Cell_2'].iloc[ind],
                               df_vertices['Cell_3'].iloc[ind],
@@ -205,6 +204,7 @@ def junctions(list_vertices, df_vertices):
                                           ])
 
     for ind in range(0, df_vertices.shape[0]):  # pour chaque vertex
+
         cells_ind = np.array([df_vertices['Cell_1'][ind],
                               df_vertices['Cell_2'][ind],
                               df_vertices['Cell_3'][ind],
@@ -318,8 +318,8 @@ def generate_mesh(mask, seg=None, dilation_width=1):
             else:
                 edge['v2'] = df_.index[0]
 
-            edge_df = edge_df.append(edge,
-                                     ignore_index=True)
+        edge_df = edge_df.append(edge,
+                                 ignore_index=True)
 
     edge_df['cell1'] = pd.to_numeric(edge_df['cell1'], downcast='integer')
     edge_df['cell2'] = pd.to_numeric(edge_df['cell2'], downcast='integer')
