@@ -160,11 +160,14 @@ def vertices(mask, seg=None, dilation_width=1):
 
         ucells = np.unique(liste_cellsi)
 
-        df_vertices['Cell_1'].iloc[ind] = ucells[0]
-        df_vertices['Cell_2'].iloc[ind] = ucells[1]
-        df_vertices['Cell_3'].iloc[ind] = ucells[2]
-        df_vertices['Cell_4'].iloc[ind] = ucells[3]
-        df_vertices['Cell_5'].iloc[ind] = ucells[4]
+        try:
+            df_vertices['Cell_1'].iloc[ind] = ucells[0]
+            df_vertices['Cell_2'].iloc[ind] = ucells[1]
+            df_vertices['Cell_3'].iloc[ind] = ucells[2]
+            df_vertices['Cell_4'].iloc[ind] = ucells[3]
+            df_vertices['Cell_5'].iloc[ind] = ucells[4]
+        except:
+            pass
 
         # print(liste_i)
         df_vertices = df_vertices.drop(liste_i)

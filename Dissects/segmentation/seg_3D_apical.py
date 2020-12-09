@@ -1,6 +1,8 @@
 import numpy as np
+import pandas as pd
 from sklearn import manifold
 from skimage import morphology
+from .seg_2D import generate_mesh
 
 
 def flatten_tissu(datas,
@@ -61,21 +63,47 @@ def binary_flatten_tissu(point_transformed, df=None):
 
     if df is None:
         for i in range(point_transformed.shape[1]):
-            img_binary[round(points[1][i] + (ncols / 2)).astype(int),
-                       round(points[0][i] + (nrows / 2)).astype(int)] = 1
+            img_binary[round(points[1][i] + (ncols / 2)),
+                       round(points[0][i] + (nrows / 2))] = 1
 
     else:
         df['x_b'] = 0
         df['y_b'] = 0
         for i in range(point_transformed.shape[1]):
-            img_binary[round(points[1][i] + (ncols / 2)).astype(int),
-                       round(points[0][i] + (nrows / 2)).astype(int)] = 1
-            df.loc[i, 'x_b'] = round(points[1][i] + (ncols / 2)).astype(int)
-            df.loc[i, 'y_b'] = round(points[0][i] + (nrows / 2)).astype(int)
+            img_binary[round(points[1][i] + (ncols / 2)),
+                       round(points[0][i] + (nrows / 2))] = 1
+            df.loc[i, 'x_b'] = round(points[1][i] + (ncols / 2))
+            df.loc[i, 'y_b'] = round(points[0][i] + (nrows / 2))
 
     # voir ce qui peut etre améliorer pour fermer les cellules
     img_binary = morphology.binary_dilation(img_binary)
     img_binary = morphology.binary_dilation(img_binary)
     img_binary = morphology.skeletonize(img_binary)
 
-    return img_binary
+    return img_binary.astype(int)
+
+
+def generate_mesh_3D(mask, df_convert):
+
+    face_df, edge_df, vert_df = generate_mesh(mask)
+
+    vert_df_3d = pd.DataFrame()
+    for _, v in vert_df.iterrows():
+
+        df_ = df_convert[df_convert['x_b'] == v.x]
+        if not df_.empty:
+            df_ = df_[df_['y_b'] == v.y]
+            if not df_.empty:
+                vert_df_3d = vert_df_3d.append({'x': df_.x.to_numpy()[0],
+                                                'y': df_.y.to_numpy()[0],
+                                                'z': df_.z.to_numpy()[0]},
+                                               ignore_index=True)
+            else:
+                df_ = df_convert[df_convert['x_b'] == v.x]
+                df_ = df_.iloc[np.argmin(np.abs(df_.y_b - v.y))]
+                vert_df_3d = vert_df_3d.append({'x': df_.x,
+                                                'y': df_.y,
+                                                'z': df_.z},
+                                               ignore_index=True)
+
+    return face_df, edge_df, vert_df_3d
