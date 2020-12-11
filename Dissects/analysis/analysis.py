@@ -8,6 +8,7 @@ from skimage.morphology import binary_dilation
 from Dissects.segmentation.seg_2D import junction_around_cell
 from Dissects.image import dilation
 from scipy import ndimage as ndi
+import scipy as sc
 
 
 def general_analysis(image, mask, normalize=False, noise=None):
@@ -115,3 +116,63 @@ def cellstats(image, mask, N, seg, sigmain, scale):
                            sigmain] = stats.sem(image_cell_junction)
 
     return dataframe
+
+
+
+def junctions_stats(df_junctions, mask, seg, image, n):
+    """"
+    Complete the df_junctions DataFrame (created by the 'junctions' function) with signal quantification of the junctions
+
+    Parameters
+    ----------
+    df_junctions : DataFrame created by the 'junctions' function
+
+    mask : numpy.array
+    The mask of filaments as the wanted enlargment
+
+    seg : numpy.array
+    The segmented image output of the 'vertices' function
+
+    image: numpy.array
+    the image channel you want to realise the quantification upon
+
+    n: integer
+    The size (pixel number) of the dilation of the junctions
+
+    Returns
+    -------
+    DataFrame of the junctions complemented with the direction, mean, standard deviation (std) and standard error of the mean (sem) for each junction
+    """
+
+    df_junctions_stats = pd.DataFrame.copy(df_junctions)
+
+    direction=[]
+    mean=[]
+    std=[]
+    sem=[]
+
+    for ind in range (0, df_junctions.shape[0]):
+
+        direction_ind = (np.arctan((df_junctions['y0'][ind]-df_junctions['y1'][ind])
+                                        /(df_junctions['x0'][ind]-df_junctions['x1'][ind])))*180/np.pi
+
+        junction_ind = junction_around_cell(mask, seg, df_junctions['Cell1'][ind])*junction_around_cell(mask, seg, df_junctions['Cell2'][ind])
+
+        junctions_ind_dilated = dilation(junction_ind, n)
+
+        mean_ind = np.mean(image[np.where(junctions_ind_dilated != 0)])
+        std_ind = np.std(image[np.where(junctions_ind_dilated != 0)])
+        sem_ind = sc.stats.sem(image[np.where(junctions_ind_dilated != 0)])
+
+        direction.append(direction_ind)
+        mean.append(mean_ind)
+        std.append(std_ind)
+        sem.append(sem_ind)
+
+    df_junctions_stats['direction'] = direction
+    df_junctions_stats['mean'] = mean
+    df_junctions_stats['std'] = std 
+    df_junctions_stats['sem'] = sem 
+
+    return df_junctions_stats    
+
