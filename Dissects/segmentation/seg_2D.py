@@ -99,8 +99,8 @@ def vertices(mask, seg=None, dilation_width=1):
                     'Cell_3',
                     'Cell_4',
                     'Cell_5']
-    nb_vertices = len(list_vertices[0])
-    init = np.zeros((nb_vertices, len(columns_name)))
+
+    init = np.zeros((len(list_vertices[0]), len(columns_name)))
 
     df_vertices = pd.DataFrame(data=init, columns=columns_name)
 
