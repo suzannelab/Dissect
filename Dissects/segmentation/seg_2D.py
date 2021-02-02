@@ -14,7 +14,7 @@ def segmentation(mask, auto_remove = True, min_area=None, max_area=None):
     Paramaters
     ----------
     mask: np.array, filament=1 and background=0
-    auto_remove : Boolean. Automatically discard cells under and above one sigma of the mean area.
+    auto_remove : bool, default: True, automatically discard cells under and above one sigma of the mean area.
     min_area: integer, minimum number of pixels of a cell. Under this value, a cell is 0 (counts as skeletonization error)
     max_area: interger, maximum number of pixels of a cell. Above this value, a cell is 1 (counts as background)
     Return
