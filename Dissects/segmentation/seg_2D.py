@@ -34,8 +34,8 @@ def segmentation(mask, auto_remove = True, min_area=None, max_area=None):
  
     if auto_remove:
         l=[]
-        for i in range(len(np.unique(segmentation))+1):
-            n = np.count_nonzero(seg04 == i)
+        for i in range(2, len(np.unique(segmentation))-1):
+            n = np.count_nonzero(segmentation == i)
             l.append(n)
         min_area = np.mean(l) - np.std(l)
         max_area = np.mean(l) + np.std(l)
