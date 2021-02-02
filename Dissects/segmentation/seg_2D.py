@@ -14,9 +14,12 @@ def segmentation(mask, auto_remove = True, min_area=None, max_area=None):
     Paramaters
     ----------
     mask: np.array, filament=1 and background=0
-    auto_remove : bool, default: True, automatically discard cells under and above one sigma of the mean area.
-    min_area: integer, minimum number of pixels of a cell. Under this value, a cell is 0 (counts as skeletonization error)
-    max_area: interger, maximum number of pixels of a cell. Above this value, a cell is 1 (counts as background)
+    auto_remove : bool, default: True, keep 95% of the cell area distribution. 
+	The 2.5% smallest cells are set to 0 (skeletonization error), the 2.5% largest cells are set to 1 (background).
+    min_area: integer, needs to be specified only if auto_remove is False. 
+	Minimum number of pixels of a cell. When smaller, cells are set to 0 (counts as skeletonization error)
+    max_area: interger, needs to be specified only if auto_remove is False. 
+	Maximum number of pixels of a cell. When larger, cells are set to 1 (counts as background)
     Return
     ------
     segmentation: np.array
@@ -37,8 +40,8 @@ def segmentation(mask, auto_remove = True, min_area=None, max_area=None):
         for i in range(2, len(np.unique(segmentation))-1):
             n = np.count_nonzero(segmentation == i)
             l.append(n)
-        min_area = np.mean(l) - np.std(l)
-        max_area = np.mean(l) + np.std(l)
+        min_area = np.percentile(l,2.5)
+        max_area = np.percentile(l,97.5)
 
         segmentation = morphology.remove_small_objects(segmentation, min_area)
         seg_max = morphology.remove_small_objects(segmentation, max_area)
