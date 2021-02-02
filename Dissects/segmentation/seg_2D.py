@@ -7,15 +7,16 @@ from skimage.morphology import binary_dilation
 from Dissects.image import thinning
 from Dissects.image import dilation
 
-
-def segmentation(mask, min_area=None):
+def segmentation(mask, auto_remove = True, min_area=None, max_area=None):
     """
     Segment the cells of the image.
 
     Paramaters
     ----------
     mask: np.array, filament=1 and background=0
-    mean_area: integer, minimum number of pixels of a cell
+    auto_remove : Boolean. Automatically discard cells under and above one sigma of the mean area.
+    min_area: integer, minimum number of pixels of a cell. Under this value, a cell is 0 (counts as skeletonization error)
+    max_area: interger, maximum number of pixels of a cell. Above this value, a cell is 1 (counts as background)
     Return
     ------
     segmentation: np.array
@@ -30,41 +31,29 @@ def segmentation(mask, min_area=None):
 
     segmentation = ski_seg.watershed(edges, markers)
     segmentation, _ = ndi.label(segmentation == 2)
-    if min_area is not None:
+ 
+    if auto_remove:
+        l=[]
+        for i in range(len(np.unique(segmentation))+1):
+            n = np.count_nonzero(seg04 == i)
+            l.append(n)
+        min_area = np.mean(l) - np.std(l)
+        max_area = np.mean(l) + np.std(l)
+
         segmentation = morphology.remove_small_objects(segmentation, min_area)
-
-    return segmentation
-
-
-def segmentation2(mask, min_area=None, max_area=None):
-    """
-    Segment the cells of the image.
-
-    Paramaters
-    ----------
-    mask: np.array, filament=1 and background=0
-    min_area: integer, minimum number of pixels of a cell. Under this value, a cell is 0
-    max_area: interger, maximum number of pixels of a cell. Above this value, a cell is 1
-    Return
-    ------
-    segmentation: np.array
-        Pixels of filaments are equal to 0
-        Pixels of the background = 1
-        Pixels of cell i = i
-    """
-    edges = filters.sobel(mask)
-    markers = np.zeros_like(mask)
-    markers[mask == 0] = 2
-    markers[mask > 0] = 1
-
-    segmentation = ski_seg.watershed(edges, markers)
-    segmentation, _ = ndi.label(segmentation == 2)
-    if min_area is not None:
-        segmentation = morphology.remove_small_objects(segmentation, min_area)
-
-    if max_area is not None:
         seg_max = morphology.remove_small_objects(segmentation, max_area)
         segmentation[np.where(seg_max!=0)] = 1
+    
+    else:
+        try:
+            segmentation = morphology.remove_small_objects(segmentation, min_area)
+            seg_max = morphology.remove_small_objects(segmentation, max_area)
+            segmentation[np.where(seg_max!=0)] = 1
+        
+        except TypeError:
+            print("If auto_remove is False, you must specify min_area and max_area")  
+        
+      
     return segmentation
 
 
