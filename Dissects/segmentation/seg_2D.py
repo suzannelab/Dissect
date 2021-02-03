@@ -36,12 +36,9 @@ def segmentation(mask, auto_remove = True, min_area=None, max_area=None):
     segmentation, _ = ndi.label(segmentation == 2)
  
     if auto_remove:
-        l=[]
-        for i in range(2, len(np.unique(segmentation))-1):
-            n = np.count_nonzero(segmentation == i)
-            l.append(n)
-        min_area = np.percentile(l,2.5)
-        max_area = np.percentile(l,97.5)
+        l_areas = np.unique(segmentation, return_counts=True)[1][2:]
+        min_area = np.percentile(l_areas, 2.5)
+        max_area = np.percentile(l_areas, 97.5)
 
         segmentation = morphology.remove_small_objects(segmentation, min_area)
         seg_max = morphology.remove_small_objects(segmentation, max_area)
@@ -58,7 +55,6 @@ def segmentation(mask, auto_remove = True, min_area=None, max_area=None):
         
       
     return segmentation
-
 
 def junction_around_cell(mask, seg, cell):
     """Find junctions around cell i.
