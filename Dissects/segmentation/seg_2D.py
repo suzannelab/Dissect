@@ -90,7 +90,7 @@ def vertices(mask, max_area):
     Parameters
     ----------
     mask: np.array, filament=1 and background=0
-
+    max_area : integer, maximum number of pixel of a cell. Chosen number from the segmentation function
     Returns
     -------
     image_vertex: np.array where cells=1, junctions=2, vertices >=3
@@ -98,9 +98,6 @@ def vertices(mask, max_area):
     df_vertices: dataframe with for each vertex x_0: x coordinate of the vertex
 						y_0: y coordinate of the vertex
 						Cell_i: the cells connected to the vertex
-    seg0: numpy.array
-    segmented image with no minimal size cell exclusion
-
     """
 
     thinmask = thinning(mask, 2)
@@ -207,7 +204,7 @@ def vertices(mask, max_area):
 
         ind+=1
 
-    return image_vertex, list_vertices, df_vertices, seg0
+    return image_vertex, list_vertices, df_vertices
 
 
 
