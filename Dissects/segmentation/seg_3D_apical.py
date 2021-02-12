@@ -1,5 +1,8 @@
 import numpy as np
 import pandas as pd
+import scipy as sci
+import itertools
+
 from sklearn import manifold
 from skimage import morphology
 from .seg_2D import generate_mesh
@@ -107,3 +110,85 @@ def generate_mesh_3D(mask, df_convert):
                                                ignore_index=True)
 
     return face_df, edge_df, vert_df_3d
+
+
+
+def find_vertex(mask, free_edges=False):
+    """
+    free_edges : if True, find vertex extremity
+    """
+    # make sure to have a skeleton
+    skeleton_mask = morphology.skeletonize(mask)
+
+    kernel = kernels_3d()
+    output_image = np.zeros(skeleton_mask.shape)
+
+    for i in np.arange(len(kernel)):
+        out = sci.ndimage.binary_hit_or_miss(skeleton_mask, kernel[i] )
+        output_image = output_image + out
+
+    if free_edges==True:
+        kernel = kernels_extremity()
+        for i in np.arange(len(kernel)):
+            out = sci.ndimage.binary_hit_or_miss(skeleton_mask, kernel[i] )
+            output_image = output_image + out
+
+    return output_image
+
+
+def kernels_3d():
+    # Need to write some kernels
+    # Idealy if it can learn it could be very nice...
+    # Especially for 3d kernel...
+    kernels = np.array(
+                       np.array([[[0,0,0],
+                                  [0,1,0],
+                                  [0,0,0]],
+                                 [[0,1,0],
+                                  [1,1,1],
+                                  [0,1,0]],
+                                 [[0,0,0],
+                                  [0,1,0],
+                                  [0,0,0]]]),
+
+                       np.array([[[0,0,0],
+                                  [0,1,0],
+                                  [0,0,0]],
+                                 [[0,1,0],
+                                  [1,1,0],
+                                  [0,1,0]],
+                                 [[0,0,1],
+                                  [0,0,0],
+                                  [0,0,0]]]),
+
+                       )
+
+
+
+    return kernels
+
+def kernels_extremity():
+    kernels = np.array(
+                       np.array([[[0,0,0],
+                                  [0,1,0],
+                                  [0,0,0]],
+                                 [[0,0,0],
+                                  [0,1,0],
+                                  [0,0,0]],
+                                 [[0,0,0],
+                                  [0,0,0],
+                                  [0,0,0]]]),
+
+                       np.array([[[0,0,0],
+                                  [0,0,0],
+                                  [0,0,0]],
+                                 [[0,0,0],
+                                  [1,1,0],
+                                  [0,0,0]],
+                                 [[0,0,0],
+                                  [0,0,0],
+                                  [0,0,0]]]),
+
+                       )
+
+    return kernels
