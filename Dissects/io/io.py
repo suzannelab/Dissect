@@ -60,9 +60,6 @@ def load_NDskl(filename):
             specs['bbox_delta'] = np.asfarray(bbox_delta[1:-1].split(','))
 
         # CRITICAL POINTS
-        cp_column = (list('xyz')[:specs['ndims']] +
-                     ['type', 'val', 'pair', 'boundary', 'nfil'])
-        cp_df = pd.DataFrame(columns=cp_column)
         cp_filament_info = {}
         if _check_pattern(_readline(f), '[CRITICAL POINTS]'):
             specs['ncrit'] = int(_readline(f))
@@ -71,13 +68,16 @@ def load_NDskl(filename):
             # l1 : type pos, val, pair, boundary
             # l2 : number of filament connected to the CP
             # l3-l_num_fil : filament information
+            datas = {}
             for i in range(specs['ncrit']):
                 data = {}
                 # l1
                 line1 = _readline(f).split()
                 data['type'] = int(line1[0])
+
                 for n in range(specs['ndims']):
                     data[list('xyz')[n]] = float(line1[1 + n])
+
                 data['val'] = float(line1[1 + specs['ndims']])
                 data['pair'] = float(line1[2 + specs['ndims']])
                 data['boundary'] = float(line1[3 + specs['ndims']])
@@ -89,18 +89,19 @@ def load_NDskl(filename):
                     cp_filament_info[i] = {'destcritid': int(line[0]),
                                            'fillId': int(line[1])}
                 # Put information in DataFrame
-                cp_df = cp_df.append(data, ignore_index=True)
+                datas[i] = data
+            cp_df = pd.DataFrame.from_dict(datas, orient='index')
 
         # FILAMENTS
-        fil_column = ['cp1', 'cp2', 'nsamp']
-        fil_df = pd.DataFrame(columns=fil_column)
-        fil_points = pd.DataFrame(columns=list('xyz')[:specs['ndims']])
+        fils = {}
+        cpt_fils = 0
         if _check_pattern(_readline(f), '[FILAMENTS]'):
             specs['nfil'] = int(_readline(f))
 
             # Bloc of informations for each filament
             # l1 : cp1, cp2, nsamp
             # l2-l... : points informations of filament
+            datas = {}
             for i in range(specs['nfil']):
                 data = {}
                 # l1
@@ -115,39 +116,47 @@ def load_NDskl(filename):
                         fil[list('xyz')[n]] = float(line[n])
                         fil['filament'] = i
 
-                    fil_points = fil_points.append(fil, ignore_index=True)
-                # Put information in DataFrame
-                fil_df = fil_df.append(data, ignore_index=True)
+                    fils[cpt_fils] = fil
+                    cpt_fils += 1
+
+                datas[i] = data
+            # Put information in DataFrame
+            fil_df = pd.DataFrame.from_dict(datas, orient='index')
+            fil_points = pd.DataFrame.from_dict(fils, orient='index')
 
         # CRITICAL POINT supplementary information
         if _check_pattern(_readline(f), '[CRITICAL POINTS DATA]', optionnal=True):
             ninfo = int(_readline(f))
-            crit = []
+            crit_columns_name = []
             for i in range(ninfo):
-                crit.append(_readline(f)[:-1])
-            cp_supp = pd.DataFrame(columns=crit)
+                crit_columns_name.append(_readline(f)[:-1])
+
+            datas = {}
             for i in range(specs['ncrit']):
                 data = {}
                 line = _readline(f).split()
                 for ii in range(ninfo):
-                    data[crit[ii]] = line[ii]
-                cp_supp = cp_supp.append(data, ignore_index=True)
+                    data[crit_columns_name[ii]] = line[ii]
+                datas[i] = data
+            cp_supp = pd.DataFrame.from_dict(datas, orient='index')
         # merge cp_df and cp_supp
         cp_df = pd.concat([cp_df, cp_supp], axis=1, sort=False)
 
         # FILAMENT supplementary information
         if _check_pattern(_readline(f), '[FILAMENTS DATA]', optionnal=True):
             ninfo = int(_readline(f))
-            fil = []
+            fil_columns_name = []
             for i in range(ninfo):
-                fil.append(_readline(f)[:-1])
-            fil_supp = pd.DataFrame(columns=fil)
+                fil_columns_name.append(_readline(f)[:-1])
+
+            datas = {}
             for i in range(fil_points.shape[0]):
                 data = {}
                 line = _readline(f).split()
                 for ii in range(ninfo):
-                    data[crit[ii]] = line[ii]
-                fil_supp = fil_supp.append(data, ignore_index=True)
+                    data[fil_columns_name[ii]] = line[ii]
+                datas[i] = data
+            fil_supp = pd.DataFrame.from_dict(datas, orient='index')
         # merge cp_df and cp_supp
         fil_points = pd.concat([fil_points, fil_supp], axis=1, sort=False)
 
@@ -318,8 +327,6 @@ def save_vtp(skeleton, filename, path=None):
     vtp_file = tvtk.PolyData(points=points, verts=verts, lines=lines)
 
     # Add informations
-
-
 
     v = tvtk.XMLPolyDataWriter()
     v.set_input_data(vtp_file)
