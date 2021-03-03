@@ -95,14 +95,14 @@ class Skeleton():
             self.filament['cp2'] = reset_cp2
 
             # update nfil in self.critical_point
+            self.critical_point['nfil']=0
             i = self.filament.groupby(['cp1']).size().index
             val = self.filament.groupby(['cp1']).size().values
             self.critical_point.loc[i, 'nfil'] = val
             i = self.filament.groupby(['cp2']).size().index
             val = self.filament.groupby(['cp2']).size().values
-            self.critical_point.loc[i, 'nfil'] = val
-            tip_cp = self.critical_point[
-                self.critical_point['nfil'] == 1].index
+            self.critical_point.loc[i, 'nfil'] += val
+            tip_cp = self.critical_point[self.critical_point['nfil'] == 1].index
 
             self.point = self.point[self.point[
                 'filament'].isin(self.filament['id'])].copy()
