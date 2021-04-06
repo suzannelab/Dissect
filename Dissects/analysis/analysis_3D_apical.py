@@ -35,7 +35,7 @@ def compute_normal(face_df, edge_df, vert_df):
 #     # update centroid face
 #     face_df[list('xyz')] = edge_df.groupby("face")[['sx','sy','sz']].mean()
     edge_df[['fz', 'fy', 'fx']] = face_df.loc[edge_df.face.to_numpy()
-                                              ]['fz', 'fy', 'fx'].to_numpy()
+                                              ][['fz', 'fy', 'fx']].to_numpy()
     edge_df[['dz', 'dy', 'dx']] = edge_df[['tz', 'ty', 'tx']
                                           ].to_numpy() - edge_df[['sz', 'sy', 'sx']].to_numpy()
     edge_df[['rz', 'ry', 'rx']] = edge_df[['sz', 'sy', 'sx']
@@ -221,13 +221,23 @@ def enlarge_face_plane(image,
     bottom['y'] = round(bottom['y_um']/pixel_size['y'])
     bottom['z'] = round(bottom['z_um']/pixel_size['z'])
 
-    img_plane = np.zeros(image.shape)
-    for i, data in top.iterrows():
-        img_plane[int(data.z), int(data.y), int(data.x)] = 1
-    for i, data in bottom.iterrows():
-        img_plane[int(data.z), int(data.y), int(data.x)] = 1
-    for i, data in vert_df.loc[edge_df[edge_df.face == face_id].srce.to_numpy()].iterrows():
-        img_plane[int(data.z), int(data.y), int(data.x)] = 1
+    try:
+        img_plane = np.zeros(image.shape)
+        for i, data in top.iterrows():
+            img_plane[int(data.z), int(data.y), int(data.x)] = 1
+        for i, data in bottom.iterrows():
+            img_plane[int(data.z), int(data.y), int(data.x)] = 1
+        for i, data in vert_df.loc[edge_df[edge_df.face == face_id].srce.to_numpy()].iterrows():
+            img_plane[int(data.z), int(data.y), int(data.x)] = 1
+    except Exception as ex:
+            """
+            correspond aux petites jonction ajouté "à la main"
+            il faut retrouver les pixels pour pouvoir mesurer les jonctions...
+            """
+            print(ex)
+            pass
+
+
 
     pts = np.concatenate((np.where(img_plane == 1)[0], np.where(img_plane == 1)[
                          1], np.where(img_plane == 1)[2])).reshape(3, len(np.where(img_plane == 1)[0]))
