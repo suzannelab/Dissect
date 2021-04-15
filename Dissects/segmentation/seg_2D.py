@@ -128,7 +128,7 @@ def vertices(mask, max_area):
         carre = seg0[max(0,list_vertices[0][v]-3) : min(list_vertices[0][v]+4,seg0.shape[0]-1), 
                      max(0,list_vertices[1][v]-3) :  min(list_vertices[1][v]+4,seg0.shape[1]-1)]
         cells = np.unique(carre)
-        print(cells)
+        # print(cells)
         if len(cells)>0:
             
             df_vertices.loc[v]['x_0'] = list_vertices[0][v]
@@ -203,6 +203,7 @@ def vertices(mask, max_area):
         df_vertices=df_vertices.drop(liste_i)
 
         ind+=1
+    df_vertices.reset_index(drop=True, inplace=True)
 
     return image_vertex, list_vertices, df_vertices
 
@@ -302,7 +303,7 @@ def generate_mesh(mask, seg=None, dilation_width=1):
     """
 
     # Vertices detection
-    image_vertex, list_vertices, df_vertices = vertices(mask, seg, dilation_width)
+    image_vertex, list_vertices, df_vertices = vertices(mask, 10000000)
 
     # Edge detection
     df_junctions = junctions(list_vertices, df_vertices)
