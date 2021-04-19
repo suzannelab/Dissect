@@ -7,7 +7,7 @@ from skimage.morphology import binary_dilation
 from Dissects.image import thinning
 from Dissects.image import dilation
 
-def segmentation(mask, auto_remove = True, min_area=None, max_area=None):
+def segmentation(mask, size_auto_remove=True, min_area=None, max_area=None, boudary_auto_remove=True):
     """
     Segment the cells of the image.
 
@@ -35,7 +35,7 @@ def segmentation(mask, auto_remove = True, min_area=None, max_area=None):
     segmentation = ski_seg.watershed(edges, markers)
     segmentation, _ = ndi.label(segmentation == 2)
  
-    if auto_remove:
+    if size_auto_remove:
         l_areas = np.unique(segmentation, return_counts=True)[1][2:]
         min_area = np.percentile(l_areas, 2.5)
         max_area = np.percentile(l_areas, 97.5)
@@ -53,8 +53,16 @@ def segmentation(mask, auto_remove = True, min_area=None, max_area=None):
         except TypeError:
             print("If auto_remove is False, you must specify min_area and max_area")  
         
-      
-    return segmentation
+    if boudary_auto_remove:
+        boudcells=[]
+        for i in range(len(np.unique(segmentation))):
+            if (np.isin(0, np.where(segmentation==i))
+                or np.isin(segmentation.shape[0], np.where(segmentation==i)[0])
+                or np.isin(segmentation.shape[1]-1, np.where(segmentation==i)[1])):
+                boudcells.append(i)
+
+        for i in boudcells:
+            segmentation[np.where(segmentation==i)] = 1
 
 def junction_around_cell(mask, seg, cell):
     """Find junctions around cell i.
