@@ -10,34 +10,24 @@ from .seg_2D import generate_mesh
 from scipy.ndimage.morphology import binary_dilation
 
 
-def find_vertex(skeleton_mask,
-                free_edges=False,
-                kernel_path='../Dissects/segmentation/3d_pattern.csv'):
+def generate_segmentation(skeleton_image, 
+                          free_edges=False,
+                          kernel_path='../Dissects/segmentation/3d_pattern.csv'
+                          ):
+
+    vert_df = find_vertex(skeleton_image)
+    edge_df = find_edges(skeleton_image, vert_df, half_edge=True)
+    face_df, edge_df = find_cell(edge_df)
+
+    return face_df, edge_df, vert_df
+
+
+def clean_vertex_image(vertex_image):
     """
-    free_edges : if True, find vertex extremity
-    warning :  make sure to have a skeletonize the output of disperse
+    Generate vert_df table from binary image with vertex only
+    Group vertex into one if there is vertex detected too close to each other
+    vertex_image: binary image with 1 where there is a vertex
     """
-
-    # Need to be improve
-    kernel = np.array(pd.read_csv(kernel_path, header=None))
-    kernel = kernel.reshape((int(kernel.shape[0]/9), 3, 3, 3))
-
-    output_image = np.zeros(skeleton_mask.shape)
-
-    for i in np.arange(len(kernel)):
-        out = sci.ndimage.binary_hit_or_miss(skeleton_mask, kernel[i])
-        output_image = output_image + out
-
-    if free_edges == True:
-        kernel = kernels_extremity()
-        for i in np.arange(len(kernel)):
-            out = sci.ndimage.binary_hit_or_miss(skeleton_mask, kernel[i])
-            output_image = output_image + out
-
-    return output_image
-
-
-def clean_vertex(vertex_image):
     s = sci.ndimage.generate_binary_structure(3, 3)
     labeled_array, num_features = sci.ndimage.label(vertex_image, structure=s)
     unique_, count_ = np.unique(labeled_array, return_counts=True)
@@ -63,10 +53,43 @@ def clean_vertex(vertex_image):
     return vert_df
 
 
+def find_vertex(skeleton_mask,
+                free_edges=False,
+                kernel_path='../Dissects/segmentation/3d_pattern.csv'):
+    """
+    free_edges : if True, find vertex extremity
+    warning :  make sure to have a skeletonize the output of disperse
+    """
+
+    # Need to be improve
+    kernel = np.array(pd.read_csv(kernel_path, header=None))
+    kernel = kernel.reshape((int(kernel.shape[0]/9), 3, 3, 3))
+
+    output_image = np.zeros(skeleton_mask.shape)
+
+    for i in np.arange(len(kernel)):
+        out = sci.ndimage.binary_hit_or_miss(skeleton_mask, kernel[i])
+        output_image = output_image + out
+
+    if free_edges == True:
+        kernel = kernels_extremity()
+        for i in np.arange(len(kernel)):
+            out = sci.ndimage.binary_hit_or_miss(skeleton_mask, kernel[i])
+            output_image = output_image + out
+
+    vert_df = clean_vertex_image(output_image)
+    return vert_df
+
+
+
+
+
 def find_edges(img_binary_3d,
-               output_vertex,
                vert_df,
                half_edge=True):
+    """
+    Find edges 
+    """
     # remove vertex +3x3x3 from initial image
     img_binary_3d_without_vertex = img_binary_3d.copy()
     for i, p in vert_df.iterrows():
@@ -87,7 +110,7 @@ def find_edges(img_binary_3d,
     binary_edges = np.where(labeled_array > 0, 1, 0)
 
     # clean output vertex
-    output_vertex = np.zeros(output_vertex.shape)
+    output_vertex = np.zeros(img_binary_3d.shape)
     for i, val in vert_df.iterrows():
         output_vertex[val.z, val.y, val.x] = 1
 
@@ -280,4 +303,8 @@ def find_cell(edge_df):
 
         cpt_face += 1
 
-    return edge_df
+    # create face_df table
+    face_df = pd.DataFrame(index=np.sort(edge_df.face.unique()))
+    return face_df, edge_df
+
+
