@@ -11,7 +11,8 @@ from sklearn.neighbors import KDTree, BallTree
 
 def generate_segmentation(skeleton_image,
                           free_edges=False,
-                          kernel_path='../Dissects/segmentation/3d_pattern.csv'
+                          kernel_path='../Dissects/segmentation/3d_pattern.csv',
+                          clean=True, 
                           ):
     """
     Generate three dataframe from binary skeleton image which contains informations
@@ -22,14 +23,14 @@ def generate_segmentation(skeleton_image,
     skeleton_image : binary np.array; background=0, skeleton=1
     free_edges     : bool; find edge with one side which is not connected
     kernel_path    : str; path to csv file contains list of pattern for vertex detection
-    
+
     Return
     ------
     face_df : DataFrame
     edge_df : DataFrame
     vert_df : DataFrame
     """
-    vert_df = find_vertex(skeleton_image, free_edges, kernel_path)
+    vert_df = find_vertex(skeleton_image, free_edges, kernel_path, clean)
     edge_df = find_edges(skeleton_image, vert_df, half_edge=True)
     face_df, edge_df = find_cell(edge_df)
 
@@ -40,7 +41,7 @@ def clean_vertex_image(vertex_image):
     """
     Group vertex into one if there is vertex detected too close to each other
     Group vertex if they are closed, meaning connected in any axis. 
-    
+
     Parameters
     ----------
     vertex_image: binary image with 1 where there is a vertex
@@ -76,7 +77,8 @@ def clean_vertex_image(vertex_image):
 
 def find_vertex(skeleton_mask,
                 free_edges=False,
-                kernel_path='../Dissects/segmentation/3d_pattern.csv'):
+                kernel_path='../Dissects/segmentation/3d_pattern.csv',
+                clean=True):
     """
     Generate vert_df table from binary image with vertex only
     Advice: make sure to have a skeletonize the output of disperse
@@ -86,7 +88,7 @@ def find_vertex(skeleton_mask,
     skeleton_mask : 
     free_edges    : bool; if True, find vertex extremity
     kernel_path   : str; path to csv file contains list of pattern for vertex detection
-    
+
     Return
     ------
     vert_df: DataFrame of vertex 
@@ -109,7 +111,12 @@ def find_vertex(skeleton_mask,
             out = ndimage.binary_hit_or_miss(skeleton_mask, kernel[i])
             output_image = output_image + out
 
-    vert_df = clean_vertex_image(output_image)
+    if clean:
+        vert_df = clean_vertex_image(output_image)
+    else:
+        vert_df = pd.DataFrame({'z': np.where(output_image > 0)[0],
+                                'y': np.where(output_image > 0)[1],
+                                'x': np.where(output_image > 0)[2]})
     return vert_df
 
 
@@ -130,17 +137,19 @@ def find_edges(skeleton_image,
     edge_df : Dataframe of edges
     """
     s = ndimage.generate_binary_structure(3, 3)
-
+    
     # remove vertex + 3x3x3 from initial image
     vertex_img = np.zeros(skeleton_image.shape)
     vertex_img[vert_df['z'].to_numpy(),
-                    vert_df['y'].to_numpy(),
-                    vert_df['x'].to_numpy()] = 1
-    
-    vertex_dilation = ndimage.morphology.binary_dilation(vertex_img, structure=s)
-    skeleton_without_vertex = img_binary_3d - vertex_dilation
+               vert_df['y'].to_numpy(),
+               vert_df['x'].to_numpy()] = 1
 
-    # Labeled group of isolated pixel which correspond to vertex  
+    vertex_dilation = ndimage.morphology.binary_dilation(
+        vertex_img, structure=s)
+    skeleton_image = skeleton_image/np.max(skeleton_image)
+    skeleton_without_vertex = skeleton_image * ~vertex_dilation
+
+    # Labeled group of isolated pixel which correspond to vertex
     labeled_array, num_features = ndimage.label(
         skeleton_without_vertex, structure=s)
 
@@ -157,10 +166,12 @@ def find_edges(skeleton_image,
         img_vert = np.zeros(skeleton_image.shape)
         img_vert[val.z, val.y, val.x] = 1
 
-        img_vert_dilate = ndimage.morphology.binary_dilation(img_vert, structure=s)
+        img_vert_dilate = ndimage.morphology.binary_dilation(
+            img_vert, structure=s)
         img_corresponding_vertex = img_vert_dilate + binary_edges
         while np.count_nonzero(img_corresponding_vertex == 2) < 2:
-            img_vert_dilate = ndimage.morphology.binary_dilation(img_vert_dilate, structure=s)
+            img_vert_dilate = ndimage.morphology.binary_dilation(
+                img_vert_dilate, structure=s)
             img_corresponding_vertex = img_vert_dilate + binary_edges
 
         edges = labeled_array[np.where(img_corresponding_vertex == 2)]
@@ -180,7 +191,7 @@ def find_edges(skeleton_image,
     edge_df['points'] = tmp
     edge_df.dropna(axis=0, inplace=True)
 
-    ## Recover small lost junctions
+    # Recover small lost junctions
     # Count junction associate to a vertex
     srce_count = np.unique(edge_df.srce, return_counts=True)
     trgt_count = np.unique(edge_df.trgt, return_counts=True)
