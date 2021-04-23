@@ -7,19 +7,74 @@ from skimage.morphology import binary_dilation
 from Dissects.image import thinning
 from Dissects.image import dilation
 
-def segmentation(mask, size_auto_remove=True, min_area=None, max_area=None, boudary_auto_remove=True):
+
+import networkx as nx
+import numpy as np
+import pandas as pd
+import scipy as sci
+import itertools
+
+from sklearn import manifold
+from skimage import morphology
+#from .seg_2D import generate_mesh
+from scipy.ndimage.morphology import binary_dilation
+
+
+
+def find_vertex(skeleton_mask,
+                free_edges=False,
+                kernel_path='../Dissects/segmentation/2d_pattern.csv'):
+    """
+    free_edges : if True, find vertex extremity
+    warning :  make sure to have a skeletonize the output of disperse
+    """
+    
+    # Need to be improve
+    kernel = np.array(pd.read_csv(kernel_path, header=None))
+    kernel = kernel.reshape((int(kernel.shape[0]/3), 3, 3))
+
+    output_image = np.zeros(skeleton_mask.shape)
+
+    for i in np.arange(len(kernel)):
+        out = sci.ndimage.binary_hit_or_miss(skeleton_mask, kernel[i])
+        output_image = output_image + out
+
+    if free_edges == True:
+        kernel = kernels_extremity()
+        for i in np.arange(len(kernel)):
+            out = sci.ndimage.binary_hit_or_miss(skeleton_mask, kernel[i])
+            output_image = output_image + out
+            
+    list_vertices = np.where(output_image > 0)
+    
+    columns_name = ['x_0','y_0']
+    nb_vertices = len(list_vertices[0])
+    init = np.zeros((nb_vertices , len(columns_name)))
+
+    vert_df = pd.DataFrame(data=init, columns=columns_name)
+    for v in range(0, len(list_vertices[0])):
+        vert_df.loc[v]['x_0'] = list_vertices[0][v]
+        vert_df.loc[v]['y_0'] = list_vertices[1][v]
+    
+#    vert_df = clean_vertex_image(output_image)
+    return vert_df
+
+
+
+def segmentation(mask, size_auto_remove=True, min_area=None, max_area=None, boundary_auto_remove=True):
     """
     Segment the cells of the image.
 
     Paramaters
     ----------
     mask: np.array, filament=1 and background=0
-    auto_remove : bool, default: True, keep 95% of the cell area distribution. 
+    size_auto_remove : bool, default: True, keep 95% of the cell area distribution. 
 	The 2.5% smallest cells are set to 0 (skeletonization error), the 2.5% largest cells are set to 1 (background).
     min_area: integer, needs to be specified only if auto_remove is False. 
 	Minimum number of pixels of a cell. When smaller, cells are set to 0 (counts as skeletonization error)
     max_area: interger, needs to be specified only if auto_remove is False. 
 	Maximum number of pixels of a cell. When larger, cells are set to 1 (counts as background)
+    boundary_auto_remove : remove cells at the boundary of the image
     Return
     ------
     segmentation: np.array
@@ -53,16 +108,16 @@ def segmentation(mask, size_auto_remove=True, min_area=None, max_area=None, boud
         except TypeError:
             print("If auto_remove is False, you must specify min_area and max_area")  
         
-    if boudary_auto_remove:
-        boudcells=[]
+    if boundary_auto_remove:
+        boundcells=[]
         for i in range(len(np.unique(segmentation))):
             if (np.isin(0, np.where(segmentation==i))
                 or np.isin(segmentation.shape[0], np.where(segmentation==i)[0])
                 or np.isin(segmentation.shape[1]-1, np.where(segmentation==i)[1])):
-                boudcells.append(i)
-
-        for i in boudcells:
+                boundcells.append(i)
+        for i in boundcells:
             segmentation[np.where(segmentation==i)] = 1
+    return segmentation
 
 def junction_around_cell(mask, seg, cell):
     """Find junctions around cell i.
@@ -92,7 +147,7 @@ def junction_around_cell(mask, seg, cell):
 
 
 
-def vertices(mask, max_area, seg):
+def vertices(mask, max_area, seg, dist):
     """Find the vertices (nodes) of the skeleton
 
     Parameters
@@ -100,6 +155,7 @@ def vertices(mask, max_area, seg):
     mask: np.array, filament=1 and background=0
     max_area: integer, maximum number of pixel of a cell. Chosen number from the segmentation function
     seg: the segmentation numpy array got after segmentation function
+    dist: integer, minimum distance (in pixel) between two vertices
     Returns
     -------
     image_vertex: np.array where cells=1, junctions=2, vertices >=3
@@ -109,8 +165,8 @@ def vertices(mask, max_area, seg):
     Cell_i: the cells connected to the vertex
     """
 
-    thinmask = thinning(mask, 2)
-    seg0 = segmentation(thinmask, auto_remove=False, min_area = 0, max_area=max_area)
+    thinmask = thinning(mask, 3)
+    seg0 = segmentation(thinmask, size_auto_remove=False, min_area = 0, max_area=max_area, boundary_auto_remove=False)
     image_vertex = np.zeros_like(mask)
 
     for i in range(1, np.unique(seg0)[-1]+1):
@@ -128,8 +184,8 @@ def vertices(mask, max_area, seg):
     liste0 = []
     for v in range(0, len(list_vertices[0])):
 
-        carre = seg[max(0,list_vertices[0][v]-3) : min(list_vertices[0][v]+4,seg.shape[0]-1),
-                    max(0,list_vertices[1][v]-3) : min(list_vertices[1][v]+4,seg.shape[1]-1)]
+        carre = seg[max(0,list_vertices[0][v]-dist) : min(list_vertices[0][v]+(dist+1),seg.shape[0]-1),
+                    max(0,list_vertices[1][v]-dist) : min(list_vertices[1][v]+(dist+1),seg.shape[1]-1)]
         cells = np.unique(carre)
         print(cells)
         
@@ -217,7 +273,6 @@ def vertices(mask, max_area, seg):
 
         ind+=1
     return image_vertex, list_vertices, df_vertices
-
 
 def junctions(list_vertices, df_vertices):
     """Create a dataframe of the cell junctions
