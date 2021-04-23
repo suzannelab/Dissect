@@ -74,10 +74,9 @@ def segmentation(mask, size_auto_remove=True, min_area=None, max_area=None, boun
 	Minimum number of pixels of a cell. When smaller, cells are set to 0 (counts as skeletonization error)
     max_area: interger, needs to be specified only if auto_remove is False. 
 	Maximum number of pixels of a cell. When larger, cells are set to 1 (counts as background)
-    boundary_auto_remove : remove cells at the boundary of the image
     Return
     ------
-    segmentation: np.array
+    segmented_im: np.array
         Pixels of filaments are equal to 0
         Pixels of the background = 1
         Pixels of cell i = i
@@ -87,37 +86,40 @@ def segmentation(mask, size_auto_remove=True, min_area=None, max_area=None, boun
     markers[mask == 0] = 2
     markers[mask > 0] = 1
 
-    segmentation = ski_seg.watershed(edges, markers)
-    segmentation, _ = ndi.label(segmentation == 2)
+    segmented_im = ski_seg.watershed(edges, markers)
+    segmented_im, _ = ndi.label(segmented_im == 2)
  
     if size_auto_remove:
-        l_areas = np.unique(segmentation, return_counts=True)[1][2:]
+        l_areas = np.unique(segmented_im, return_counts=True)[1][2:]
         min_area = np.percentile(l_areas, 2.5)
         max_area = np.percentile(l_areas, 97.5)
 
-        segmentation = morphology.remove_small_objects(segmentation, min_area)
-        seg_max = morphology.remove_small_objects(segmentation, max_area)
-        segmentation[np.where(seg_max!=0)] = 1
-    
+        segmented_im = morphology.remove_small_objects(segmented_im, min_area)
+        seg_max = morphology.remove_small_objects(segmented_im, max_area)
+        segmented_im[np.where(seg_max!=0)] = 1
     else:
         try:
-            segmentation = morphology.remove_small_objects(segmentation, min_area)
-            seg_max = morphology.remove_small_objects(segmentation, max_area)
-            segmentation[np.where(seg_max!=0)] = 1
-        
+            segmented_im = morphology.remove_small_objects(segmented_im, min_area)
+            seg_max = morphology.remove_small_objects(segmented_im, max_area)
+            segmented_im[np.where(seg_max!=0)] = 1
+
         except TypeError:
-            print("If auto_remove is False, you must specify min_area and max_area")  
-        
+            print("If size_auto_remove is False, you must specify min_area and max_area")
+
     if boundary_auto_remove:
         boundcells=[]
-        for i in range(len(np.unique(segmentation))):
-            if (np.isin(0, np.where(segmentation==i))
-                or np.isin(segmentation.shape[0], np.where(segmentation==i)[0])
-                or np.isin(segmentation.shape[1]-1, np.where(segmentation==i)[1])):
-                boundcells.append(i)
+        for i in range(len(np.unique(segmented_im))):
+            if (np.isin(0, np.where(segmented_im==i))
+                or np.isin(segmented_im.shape[0], np.where(segmented_im==i)[0])
+                or np.isin(segmented_im.shape[1]-1, np.where(segmented_im==i)[1])):
+                    boundcells.append(i)
+        if np.isin(0, boundcells):
+            boundcells.remove(0)
+        if np.isin(1, boundcells):
+            boundcells.remove(1)
         for i in boundcells:
-            segmentation[np.where(segmentation==i)] = 1
-    return segmentation
+            segmented_im[np.where(segmented_im==i)] = 1
+    return segmented_im
 
 def junction_around_cell(mask, seg, cell):
     """Find junctions around cell i.
