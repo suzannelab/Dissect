@@ -6,8 +6,6 @@ from scipy import ndimage as ndi
 from skimage.morphology import binary_dilation
 from Dissects.image import thinning
 from Dissects.image import dilation
-
-
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -19,45 +17,6 @@ from skimage import morphology
 #from .seg_2D import generate_mesh
 from scipy.ndimage.morphology import binary_dilation
 
-
-
-def find_vertex(skeleton_mask,
-                free_edges=False,
-                kernel_path='../Dissects/segmentation/2d_pattern.csv'):
-    """
-    free_edges : if True, find vertex extremity
-    warning :  make sure to have a skeletonize the output of disperse
-    """
-    
-    # Need to be improve
-    kernel = np.array(pd.read_csv(kernel_path, header=None))
-    kernel = kernel.reshape((int(kernel.shape[0]/3), 3, 3))
-
-    output_image = np.zeros(skeleton_mask.shape)
-
-    for i in np.arange(len(kernel)):
-        out = sci.ndimage.binary_hit_or_miss(skeleton_mask, kernel[i])
-        output_image = output_image + out
-
-    if free_edges == True:
-        kernel = kernels_extremity()
-        for i in np.arange(len(kernel)):
-            out = sci.ndimage.binary_hit_or_miss(skeleton_mask, kernel[i])
-            output_image = output_image + out
-            
-    list_vertices = np.where(output_image > 0)
-    
-    columns_name = ['x_0','y_0']
-    nb_vertices = len(list_vertices[0])
-    init = np.zeros((nb_vertices , len(columns_name)))
-
-    vert_df = pd.DataFrame(data=init, columns=columns_name)
-    for v in range(0, len(list_vertices[0])):
-        vert_df.loc[v]['x_0'] = list_vertices[0][v]
-        vert_df.loc[v]['y_0'] = list_vertices[1][v]
-    
-#    vert_df = clean_vertex_image(output_image)
-    return vert_df
 
 
 
@@ -148,56 +107,52 @@ def junction_around_cell(mask, seg, cell):
 
 
 
-
-def vertices(mask, max_area, seg, dist):
-    """Find the vertices (nodes) of the skeleton
-
-    Parameters
-    ----------
-    mask: np.array, filament=1 and background=0
-    max_area: integer, maximum number of pixel of a cell. Chosen number from the segmentation function
-    seg: the segmentation numpy array got after segmentation function
-    dist: integer, minimum distance (in pixel) between two vertices
-    Returns
-    -------
-    image_vertex: np.array where cells=1, junctions=2, vertices >=3
-    list_vertices: list of the vertices
-    df_vertices: dataframe with for each vertex x_0: x coordinate of the vertex
-    y_0: y coordinate of the vertex
-    Cell_i: the cells connected to the vertex
+def find_vertex(skeleton_mask,
+                 dist,
+                free_edges=False,
+                kernel_path='../Dissects/segmentation/2d_pattern.csv'):
     """
+    free_edges : if True, find vertex extremity
+    warning :  make sure to have a skeletonize the output of disperse
+    """
+    seg= segmentation(mask, size_auto_remove=False, min_area=2, max_area=10000, boundary_auto_remove=True)
+    
+    # Need to be improve
+    kernel = np.array(pd.read_csv(kernel_path, header=None))
+    kernel = kernel.reshape((int(kernel.shape[0]/3), 3, 3))
 
-    thinmask = thinning(mask, 3)
-    seg0 = segmentation(thinmask, size_auto_remove=False, min_area = 0, max_area=max_area, boundary_auto_remove=False)
-    image_vertex = np.zeros_like(mask)
+    output_image = np.zeros(skeleton_mask.shape)
 
-    for i in range(1, np.unique(seg0)[-1]+1):
-        image_cell_mask_i = np.zeros_like(mask)
-        image_cell_mask_i[np.where(seg0 == i)] = 1
-        seg_dilate_i = dilation(image_cell_mask_i, 1)
-        image_vertex = image_vertex + seg_dilate_i
-    list_vertices = np.where(image_vertex >= 3) #Récupération des vextex 'simples'
+    for i in np.arange(len(kernel)):
+        out = sci.ndimage.binary_hit_or_miss(skeleton_mask, kernel[i])
+        output_image = output_image + out
 
+    if free_edges == True:
+        kernel = kernels_extremity()
+        for i in np.arange(len(kernel)):
+            out = sci.ndimage.binary_hit_or_miss(skeleton_mask, kernel[i])
+            output_image = output_image + out        
+    list_vertices = np.where(output_image > 0)
+       
+    #create dataframe with cells info
     columns_name = ['x_0','y_0','Cell_1','Cell_2','Cell_3','Cell_4','Cell_5']
     nb_vertices = len(list_vertices[0])
     init = np.zeros((nb_vertices , len(columns_name)))
-
     df_vertices = pd.DataFrame(data=init, columns=columns_name)
     liste0 = []
+    
+    #get index of cell associated to each vertex
     for v in range(0, len(list_vertices[0])):
-
         carre = seg[max(0,list_vertices[0][v]-dist) : min(list_vertices[0][v]+(dist+1),seg.shape[0]-1),
                     max(0,list_vertices[1][v]-dist) : min(list_vertices[1][v]+(dist+1),seg.shape[1]-1)]
         cells = np.unique(carre)
-        print(cells)
         
         if len(cells)>3:
-
-            df_vertices.loc[v]['x_0'] = list_vertices[0][v]
-            df_vertices.loc[v]['y_0'] = list_vertices[1][v]
-            df_vertices.loc[v]['Cell_1'] = cells[1]
-            df_vertices.loc[v]['Cell_2'] = cells[2]
-            df_vertices.loc[v]['Cell_3'] = cells[3]
+                df_vertices.loc[v]['x_0'] = list_vertices[0][v]
+                df_vertices.loc[v]['y_0'] = list_vertices[1][v]
+                df_vertices.loc[v]['Cell_1'] = cells[1]
+                df_vertices.loc[v]['Cell_2'] = cells[2]
+                df_vertices.loc[v]['Cell_3'] = cells[3]
 
         if len(np.unique(carre)) == 4 :
             df_vertices.loc[v]['Cell_4'] = 'Nan'
@@ -212,7 +167,7 @@ def vertices(mask, max_area, seg, dist):
         liste0.append(v)
 
         df_vertices=df_vertices.drop(liste0)
-
+        
     ind = 0
     while ind < len(df_vertices) :
     #print(df_vertices.shape[0])
@@ -274,7 +229,13 @@ def vertices(mask, max_area, seg, dist):
         df_vertices=df_vertices.drop(liste_i)
 
         ind+=1
-    return image_vertex, list_vertices, df_vertices
+        
+    nb_vertices = len(list_vertices[0])
+    init = df_vertices.to_numpy()
+    df_vertices2 = pd.DataFrame(data=init, columns=columns_name)
+
+    vert_df= df_vertices2.drop( ['Cell_1','Cell_2','Cell_3','Cell_4', 'Cell_5'], axis=1)
+    return vert_df, df_vertices2
 
 def junctions(list_vertices, df_vertices):
     """Create a dataframe of the cell junctions
@@ -287,71 +248,121 @@ def junctions(list_vertices, df_vertices):
     Returns
     -------
     df_junction: dataframe with Cell1: first cell of the junction
-                                Cell2: second cell of the junction
+    				Cell2: second cell of the junction
                                 x0: x coordinate of the startpoint of the junction
                                 y0: y coordinate of the startpoint of the junction
-                                x1: x coordinate of the endpoint of the junction
+                                x1: x coordinate of the endpoint of the junction 
                                 y1: y coordinate of the endpoint of the junction
-                                angle: angle between the horozintal plane and the junction
+                                angle: angle between the horizontal plane and the junction
                                 lenght: lenght of the junction
     """
 
-    df4_jonctions = pd.DataFrame(columns=['Cell1',
-                                          'Cell2',
-                                          'x0',
-                                          'y0',
-                                          'x1',
-                                          'y1',
-                                          ])
+    columns_name = ['x_0',
+                    'y_0',
+                    'Cell_1',
+                    'Cell_2',
+                    'Cell_3',
+                    'Cell_4',
+                    'Cell_5']
 
-    for ind in range(0, df_vertices.shape[0]):  # pour chaque vertex
+    init = np.zeros((1,8))
+    df_junctions = pd.DataFrame(columns=['Cell1','Cell2','x0','y0',
+                                       'x1','y1',
+                                       'angle', 'lenght', 'srce', 'trgt'])
 
-        cells_ind = np.array([df_vertices['Cell_1'][ind],
-                              df_vertices['Cell_2'][ind],
-                              df_vertices['Cell_3'][ind],
-                              df_vertices['Cell_4'][ind],
-                              df_vertices['Cell_5'][ind]])
+    for ind in range (0, df_vertices2.shape[0]): #pour chaque vertex
+        cells_ind = np.array([df_vertices2['Cell_1'][ind],
+                              df_vertices2['Cell_2'][ind],
+                              df_vertices2['Cell_3'][ind],
+                              df_vertices2['Cell_4'][ind],
+                              df_vertices2['Cell_5'][ind]])
 
-        for i in range(ind + 1, df_vertices.shape[0]):  # pour chaque autre vertex
+        for i in range (ind+1, df_vertices2.shape[0]): # pour chaque autre vertex
 
-            cells_i = np.array([df_vertices['Cell_1'][i],
-                                df_vertices['Cell_2'][i],
-                                df_vertices['Cell_3'][i],
-                                df_vertices['Cell_4'][i],
-                                df_vertices['Cell_5'][i]])
+
+            cells_i = np.array([df_vertices2['Cell_1'][i],
+                                df_vertices2['Cell_2'][i],
+                                df_vertices2['Cell_3'][i],
+                                df_vertices2['Cell_4'][i],
+                                df_vertices2['Cell_5'][i]])
 
             mask_TrueFalse = np.isin(cells_ind, cells_i)
 
-            if np.isin(1., cells_ind):
+            if np.isin(1., cells_ind) and np.isin(1., cells_i):  #si le fond(=cellule1) fait parti des cellules communes
 
-                if np.sum(mask_TrueFalse) == 3:
+                if np.sum(mask_TrueFalse) >= 3 :
 
-                    dict_jonctions = {'Cell1': cells_ind[np.where(mask_TrueFalse)][0],
-                                      'Cell2': cells_ind[np.where(mask_TrueFalse)][1],
-                                      'x0': df_vertices['x_0'][i],
-                                      'y0': df_vertices['y_0'][i],
-                                      'x1': df_vertices['x_0'][ind],
-                                      'y1': df_vertices['y_0'][ind],
-                                      }
+                    dict_junctions={'Cell1': cells_ind[np.where(mask_TrueFalse)][0],
+                                    'Cell2': cells_ind[np.where(mask_TrueFalse)][1],
+                                    'x0' : df_vertices2['x_0'][ind],
+                                    'y0' : df_vertices2['y_0'][ind],
+                                    'x1' : df_vertices2['x_0'][i],
+                                    'y1' : df_vertices2['y_0'][i],
+                                    'angle' : (np.arctan((df_vertices2['y_0'][ind]-df_vertices2['y_0'][i])
+                                        /(df_vertices2['x_0'][ind]-df_vertices2['x_0'][i])))*180/np.pi,
+                                    'lenght' : ((df_vertices2['y_0'][ind]-df_vertices2['y_0'][i])
+                                        /(df_vertices2['x_0'][ind]-df_vertices2['x_0'][i])),
+                                    'srce': ind,
+                                    'trgt' :i
+                   }
 
-                    df4_jonctions = df4_jonctions.append(
-                        dict_jonctions, ignore_index=True)
+                    df_junctions=df_junctions.append(dict_junctions, ignore_index = True)
 
             else:
 
-                if np.sum(mask_TrueFalse) >= 2:
+                if np.sum(mask_TrueFalse) >= 2 :
 
-                    dict_jonctions = {'Cell1': cells_ind[np.where(mask_TrueFalse)][0],
-                                      'Cell2': cells_ind[np.where(mask_TrueFalse)][1],
-                                      'x0': df_vertices['x_0'][i],
-                                      'y0': df_vertices['y_0'][i],
-                                      'x1': df_vertices['x_0'][ind],
-                                      'y1': df_vertices['y_0'][ind],
-                                      }
+                    dict_junctions={'Cell1': cells_ind[np.where(mask_TrueFalse)][0],
+                    'Cell2': cells_ind[np.where(mask_TrueFalse)][1],
+                    'x0' : df_vertices2['x_0'][ind],
+                    'y0' : df_vertices2['y_0'][ind],
+                    'x1' : df_vertices2['x_0'][i],
+                    'y1' : df_vertices2['y_0'][i],
+                    'angle' : (np.arctan((df_vertices2['y_0'][ind]-df_vertices2['y_0'][i])
+                                        /(df_vertices2['x_0'][ind]-df_vertices2['x_0'][i])))*180/np.pi,
+                    'lenght' : np.sqrt((df_vertices2['y_0'][ind]-df_vertices2['y_0'][i])**2
+                                        +(df_vertices2['x_0'][ind]-df_vertices2['x_0'][i])**2),
+                    'srce': ind,
+                    'trgt': i
+                   }
 
-                    df4_jonctions = df4_jonctions.append(
-                        dict_jonctions, ignore_index=True)
-    return df4_jonctions
+                    df_junctions=df_junctions.append(dict_junctions, ignore_index = True)
+                    
+    columns=['face', 'srce', 'trgt']
+    init = np.zeros(((df_junctions.shape[0])*2, 3))
+    edge_df = pd.DataFrame(data=init, columns=columns)
+    ind=0
+   
+    for i in range (0, df_junctions.shape[0]):
+    
+        edge_df['face'][ind]=df_junctions['Cell1'][i]
+        edge_df['srce'][ind]=df_junctions['srce'][i]
+        edge_df['trgt'][ind]=df_junctions['trgt'][i]
+
+        edge_df['face'][ind+1]=df_junctions['Cell2'][i]
+        edge_df['srce'][ind+1]=df_junctions['trgt'][i]
+        edge_df['trgt'][ind+1]=df_junctions['srce'][i]
+    
+        ind=ind+2
+                    
+    for i in range(edge_df.shape[0]):
+        segmentationi = np.zeros_like(seg)
+        segmentationi[np.where(seg_nobound == edge_df.face[i])] = 1
+        com=ndimage.measurements.center_of_mass(segmentationi)
+
+        #calculate angle
+        p1=np.array([vert_df.x_0[edge_df.srce[i]], vert_df.y_0[edge_df.srce[i]]])
+        p2=np.array([vert_df.x_0[edge_df.trgt[i]], vert_df.y_0[edge_df.trgt[i]]])
+        angle=math.atan2(p2[1]-com[1], p2[0]-com[0])-math.atan2(p1[1]-com[1], p1[0]-com[0])
+        
+        if np.sin(angle)<0:
+            d=edge_df.srce[i]
+            e=edge_df.trgt[i]
+            edge_df.srce[i]=e
+            edge_df.trgt[i]=d  
+                    
+                
+    return df_junctions, edge_df 
 
 
 def generate_mesh(mask, seg=None, dilation_width=1):
