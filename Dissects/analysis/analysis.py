@@ -153,8 +153,8 @@ def junctions_stats(df_junctions, mask, seg, image, n):
 
     for ind in range (0, df_junctions.shape[0]):
 
-        direction_ind = (np.arctan((df_junctions['y0'][ind]-df_junctions['y1'][ind])
-                                        /(df_junctions['x0'][ind]-df_junctions['x1'][ind])))*180/np.pi
+        direction_ind = (np.arctan((df_junctions['sy'][ind]-df_junctions['ty'][ind])
+                                        /(df_junctions['sx'][ind]-df_junctions['tx'][ind])))*180/np.pi
 
         junction_ind = junction_around_cell(mask, seg, df_junctions['Cell1'][ind])*junction_around_cell(mask, seg, df_junctions['Cell2'][ind])
 

@@ -267,9 +267,8 @@ def junctions(mask, df_vertices, vert_df, max_area):
                     'Cell_5']
 
     init = np.zeros((1,8))
-    df_junctions = pd.DataFrame(columns=['Cell1','Cell2','x0','y0',
-                                       'x1','y1',
-                                       'angle', 'length', 'srce', 'trgt'])
+    df_junctions = pd.DataFrame(columns=['Cell1','Cell2','srce', 'trgt',
+                                       'angle', 'length'])
 
     for ind in range (0, df_vertices.shape[0]): #pour chaque vertex
         cells_ind = np.array([df_vertices['Cell_1'][ind],
