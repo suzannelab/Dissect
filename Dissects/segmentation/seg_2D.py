@@ -254,7 +254,7 @@ def junctions(list_vertices, df_vertices):
                                 x1: x coordinate of the endpoint of the junction 
                                 y1: y coordinate of the endpoint of the junction
                                 angle: angle between the horizontal plane and the junction
-                                lenght: lenght of the junction
+                                length: length of the junction
     """
 
     columns_name = ['x_0',
@@ -268,7 +268,7 @@ def junctions(list_vertices, df_vertices):
     init = np.zeros((1,8))
     df_junctions = pd.DataFrame(columns=['Cell1','Cell2','x0','y0',
                                        'x1','y1',
-                                       'angle', 'lenght', 'srce', 'trgt'])
+                                       'angle', 'length', 'srce', 'trgt'])
 
     for ind in range (0, df_vertices2.shape[0]): #pour chaque vertex
         cells_ind = np.array([df_vertices2['Cell_1'][ind],
@@ -300,7 +300,7 @@ def junctions(list_vertices, df_vertices):
                                     'y1' : df_vertices2['y_0'][i],
                                     'angle' : (np.arctan((df_vertices2['y_0'][ind]-df_vertices2['y_0'][i])
                                         /(df_vertices2['x_0'][ind]-df_vertices2['x_0'][i])))*180/np.pi,
-                                    'lenght' : ((df_vertices2['y_0'][ind]-df_vertices2['y_0'][i])
+                                    'length' : ((df_vertices2['y_0'][ind]-df_vertices2['y_0'][i])
                                         /(df_vertices2['x_0'][ind]-df_vertices2['x_0'][i])),
                                     'srce': ind,
                                     'trgt' :i
@@ -320,7 +320,7 @@ def junctions(list_vertices, df_vertices):
                     'y1' : df_vertices2['y_0'][i],
                     'angle' : (np.arctan((df_vertices2['y_0'][ind]-df_vertices2['y_0'][i])
                                         /(df_vertices2['x_0'][ind]-df_vertices2['x_0'][i])))*180/np.pi,
-                    'lenght' : np.sqrt((df_vertices2['y_0'][ind]-df_vertices2['y_0'][i])**2
+                    'length' : np.sqrt((df_vertices2['y_0'][ind]-df_vertices2['y_0'][i])**2
                                         +(df_vertices2['x_0'][ind]-df_vertices2['x_0'][i])**2),
                     'srce': ind,
                     'trgt': i
