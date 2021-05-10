@@ -2,7 +2,11 @@ import os
 from astropy.io import fits
 from Dissects.io import (load_NDskl,
                          load_image,
-                         save_fits)
+                         save_fits,
+                         load_skeleton,
+                         save_skeleton,
+                         save_vtp)
+from Dissects.geometry import Skeleton
 from Dissects.stores import stores_dir
 
 
@@ -43,12 +47,37 @@ def test_save_fits():
 
 
 def test_load_skeleton():
-    return
+    filepath = os.path.join(stores_dir, '2d_skeleton.hf5')
+    data = load_skeleton(filepath)
+    assert 'critical_point' in data.keys()
+    assert 'filament' in data.keys()
+    assert 'point' in data.keys()
 
 
 def test_save_skeleton():
-    return
+    filepath = os.path.join(stores_dir, '2d_skeleton.hf5')
+    data = load_skeleton(filepath)
+    skel = Skeleton(data['critical_point'],
+                    data['filament'],
+                    data['point'])
+    save_skeleton(skel, 'test_save_skel.hf5', stores_dir)
+
+    data2 = load_skeleton(os.path.join(stores_dir, 'test_save_skel.hf5'))
+    assert data['critical_point'].shape == data['critical_point'].shape
+    assert data['filament'].shape == data['filament'].shape
+    assert data['point'].shape == data['point'].shape
+    os.remove(os.path.join(stores_dir, 'test_save_skel.hf5'))
 
 
 def test_save_vtp():
-    return
+    filepath = os.path.join(stores_dir, '2d_skeleton.hf5')
+    data = load_skeleton(filepath)
+    skel = Skeleton(data['critical_point'],
+                    data['filament'],
+                    data['point'])
+    skel.specs['ndims'] = 2
+    save_vtp(skel, 'test_save_vtp.vtp', stores_dir)
+    assert os.path.isfile(os.path.join(stores_dir, 'test_save_vtp.vtp'))
+
+    os.remove(os.path.join(stores_dir, 'test_save_vtp.vtp'))
+    

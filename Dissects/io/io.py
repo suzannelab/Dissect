@@ -184,7 +184,7 @@ def load_image(path):
     if p_width == p_height:
         metadata['pixel_ratio'] = p_width
     else:
-        warnings.warn("The ratio is not the same in x and y axis.")
+        warnings.warn("Can't get pixel ratio for now, need to enter manually.")
 
     image = imread(path)
     if len(image.shape) == 2:
