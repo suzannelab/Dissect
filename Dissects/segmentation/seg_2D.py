@@ -150,25 +150,25 @@ def find_vertex(mask,
         cells = np.unique(carre)
         
         if len(cells)>3:
-                df_vertices.loc[v]['x_0'] = list_vertices[0][v]
-                df_vertices.loc[v]['y_0'] = list_vertices[1][v]
-                df_vertices.loc[v]['Cell_1'] = cells[1]
-                df_vertices.loc[v]['Cell_2'] = cells[2]
-                df_vertices.loc[v]['Cell_3'] = cells[3]
+            df_vertices.loc[v]['x_0'] = list_vertices[0][v]
+            df_vertices.loc[v]['y_0'] = list_vertices[1][v]
+            df_vertices.loc[v]['Cell_1'] = cells[1]
+            df_vertices.loc[v]['Cell_2'] = cells[2]
+            df_vertices.loc[v]['Cell_3'] = cells[3]
 
-        if len(np.unique(carre)) == 4 :
-            df_vertices.loc[v]['Cell_4'] = 'Nan'
-            df_vertices.loc[v]['Cell_5'] = 'Nan'
-        if len(np.unique(carre)) == 5 :
-            df_vertices.loc[v]['Cell_4'] = cells[4]
-            df_vertices.loc[v]['Cell_5'] = 'Nan'
-        if len(np.unique(carre)) == 6 :
-            df_vertices.loc[v]['Cell_4'] = cells[4]
-            df_vertices.loc[v]['Cell_5'] = cells[5]
-    else:
-        liste0.append(v)
+            if len(np.unique(carre)) == 4 :
+                df_vertices.loc[v]['Cell_4'] = 'Nan'
+                df_vertices.loc[v]['Cell_5'] = 'Nan'
+            if len(np.unique(carre)) == 5 :
+                df_vertices.loc[v]['Cell_4'] = cells[4]
+                df_vertices.loc[v]['Cell_5'] = 'Nan'
+            if len(np.unique(carre)) == 6 :
+                df_vertices.loc[v]['Cell_4'] = cells[4]
+                df_vertices.loc[v]['Cell_5'] = cells[5]
+        else:
+            liste0.append(v)
 
-        df_vertices=df_vertices.drop(liste0)
+    df_vertices=df_vertices.drop(liste0)
         
     ind = 0
     while ind < len(df_vertices) :
@@ -239,7 +239,7 @@ def find_vertex(mask,
     vert_df= df_vertices2.drop( ['Cell_1','Cell_2','Cell_3','Cell_4', 'Cell_5'], axis=1)
     return vert_df, df_vertices2
 
-def junctions(mask, df_vertices, vert_df, max_area):
+def junctions(mask, df_vertices, max_area):
     """Create a dataframe of the cell junctions
 
     Parameters
@@ -257,7 +257,7 @@ def junctions(mask, df_vertices, vert_df, max_area):
                                 angle: angle between the horizontal plane and the junction
                                 length: length of the junction
     """
-
+    vert_df= df_vertices.drop( ['Cell_1','Cell_2','Cell_3','Cell_4', 'Cell_5'], axis=1)
     columns_name = ['x_0',
                     'y_0',
                     'Cell_1',
