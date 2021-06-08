@@ -365,3 +365,22 @@ def find_cell(edge_df):
 
     face_df = pd.DataFrame(index=np.sort(edge_df.face.unique()))
     return face_df, edge_df
+
+def skel_vertices(skel):
+    """Return dataframe of the skeleton bifurcation points i.e. the vertices 
+
+    Parameters
+    ----------
+    skel: skeleton object
+
+    Returns
+    -------
+    dataframe for the vertices
+    """
+    l=[]
+    df_skel_vertices=skel.critical_point
+    for i in range(0, len(df_skel_vertices)):
+        if df_skel_vertices['nfil'][i] < 3 :
+            l.append(i)
+    df_skel_vertices=df_skel_vertices.drop(l)
+    return df_skel_vertices
