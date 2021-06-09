@@ -371,16 +371,11 @@ def skel_vertices(skel):
 
     Parameters
     ----------
-    skel: skeleton object
+    skel: skeleton object, has to be breakdowned ('skelconv -breakdown')
 
     Returns
     -------
     dataframe for the vertices
     """
-    l=[]
-    df_skel_vertices=skel.critical_point
-    for i in range(0, len(df_skel_vertices)):
-        if df_skel_vertices['nfil'][i] < 3 :
-            l.append(i)
-    df_skel_vertices=df_skel_vertices.drop(l)
+    df_skel_vertices = skel.critical_point[skel.critical_point.nfil>=3]
     return df_skel_vertices
