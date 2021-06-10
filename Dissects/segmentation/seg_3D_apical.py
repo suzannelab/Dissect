@@ -9,7 +9,8 @@ from scipy import ndimage
 from sklearn.neighbors import KDTree, BallTree
 
 
-def generate_segmentation(skeleton_image,
+def generate_segmentation(skeleton, 
+                          skeleton_image=None,
                           free_edges=False,
                           kernel_path='../Dissects/segmentation/3d_pattern.csv',
                           clean=True, 
@@ -30,11 +31,72 @@ def generate_segmentation(skeleton_image,
     edge_df : DataFrame
     vert_df : DataFrame
     """
-    vert_df = find_vertex(skeleton_image, free_edges, kernel_path, clean)
-    edge_df = find_edges(skeleton_image, vert_df, half_edge=True)
+    # vert_df = find_vertex(skeleton, skeleton_image, free_edges, kernel_path, clean)
+    # edge_df = find_edges(skeleton_image, vert_df, half_edge=True)
+    vert_df, edge_df = find_vert_edges(skeleton, half_edge=True)
     face_df, edge_df = find_cell(edge_df)
 
     return face_df, edge_df, vert_df
+
+
+def find_vert_edges(skeleton, half_edge=True):
+    # find vertex
+    vert_df = skeleton.critical_point[skeleton.critical_point.nfil>=3]
+    
+    #find edges
+    edge_df = pd.DataFrame(columns=['srce', 'trgt', 'filaments'], dtype='int')
+    
+    for i, val in vert_df.iterrows():
+        start_cps = np.unique(skeleton.filament[(skeleton.filament.cp1==i) | (skeleton.filament.cp2==i)][['cp1', 'cp2']])
+        for start in start_cps:
+            sc = start
+            
+            filaments_id = []
+            if sc!=i:
+                # Get the first filament portion
+                try:
+                    filaments_id.append(skeleton.filament[(skeleton.filament.cp1==i) | (skeleton.filament.cp2==i) & 
+                                                   (skeleton.filament.cp1==sc) | (skeleton.filament.cp2==sc)].index[0])
+                except:
+                    pass
+                previous_sc = i
+                previous_previous_sc = previous_sc
+                previous_sc = sc
+                while skeleton.critical_point.loc[sc]['nfil'] < 3:
+                    tmp_sc = np.unique(skeleton.filament[(skeleton.filament.cp1==previous_sc) | (skeleton.filament.cp2==previous_sc)][['cp1','cp2']])
+                    
+                    for sc in tmp_sc :
+                        
+                        if (sc!=previous_previous_sc) and (sc!=previous_sc):
+                            
+                            try:
+                                filaments_id.append(skeleton.filament[(skeleton.filament.cp1==previous_sc) | (skeleton.filament.cp2==previous_sc) & 
+                                                   (skeleton.filament.cp1==sc) | (skeleton.filament.cp2==sc)].index[0])
+                            except:
+                                pass
+                            previous_previous_sc=previous_sc
+                            previous_sc = sc
+                            break
+                    
+            
+                edges = {'srce':i, 'trgt':sc, 'filaments':filaments_id}
+                edge_df = edge_df.append(edges, ignore_index=True)
+                
+    edge_df.drop(edge_df[edge_df.srce==edge_df.trgt].index, inplace=True, )
+    edge_df['min'] = np.min(edge_df[['srce', 'trgt']], axis=1)
+    edge_df['max'] = np.max(edge_df[['srce', 'trgt']], axis=1)
+    edge_df['srce'] = edge_df['min']
+    edge_df['trgt'] = edge_df['max']
+    edge_df.drop(['min', 'max'], axis=1, inplace=True)
+    edge_df.drop_duplicates(inplace=True, subset=['srce', 'trgt'])
+    edge_df.reset_index(drop=True, inplace=True)
+    
+    if half_edge:
+        # Need to fix columns name problem
+        edge_df['points']=edge_df['filaments']
+        edge_df.drop('filaments', axis=1, inplace=True)
+        edge_df = generate_half_edge(edge_df, vert_df)
+    return vert_df, edge_df
 
 
 def clean_vertex_image(vertex_image):
@@ -75,7 +137,8 @@ def clean_vertex_image(vertex_image):
     return vert_df
 
 
-def find_vertex(skeleton_mask,
+def find_vertex(skeleton, 
+                skeleton_mask,
                 free_edges=False,
                 kernel_path='../Dissects/segmentation/3d_pattern.csv',
                 clean=True):
@@ -96,27 +159,39 @@ def find_vertex(skeleton_mask,
     TODO: need to be improve
     """
 
-    kernel = np.array(pd.read_csv(kernel_path, header=None))
-    kernel = kernel.reshape((int(kernel.shape[0]/9), 3, 3, 3))
+    # kernel = np.array(pd.read_csv(kernel_path, header=None))
+    # kernel = kernel.reshape((int(kernel.shape[0]/9), 3, 3, 3))
 
-    output_image = np.zeros(skeleton_mask.shape)
+    # output_image = np.zeros(skeleton_mask.shape)
 
-    for i in np.arange(len(kernel)):
-        out = ndimage.binary_hit_or_miss(skeleton_mask, kernel[i])
-        output_image = output_image + out
+    # z, y, x = np.where(skeleton_mask>0)
+    # for j in range(len(z)):
+    #     for i in np.arange(len(kernel)):
+    #         sub_img = skeleton_mask[z[j]-1:z[j]+2,
+    #                                 y[j]-1:y[j]+2, 
+    #                                 x[j]-1:x[j]+2]
+    #         out = ndimage.binary_hit_or_miss(sub_img, kernel[i])
+    #         if True in out:
+    #             output_image[z[j], y[j], x[j]] = 1
+    #             break
 
-    if free_edges == True:
-        kernel = kernels_extremity()
-        for i in np.arange(len(kernel)):
-            out = ndimage.binary_hit_or_miss(skeleton_mask, kernel[i])
-            output_image = output_image + out
+    # if free_edges == True:
+    #     kernel = kernels_extremity()
+    #     for i in np.arange(len(kernel)):
+    #         out = ndimage.binary_hit_or_miss(skeleton_mask, kernel[i])
+    #         output_image = output_image + out
+
+    vert_df = skeleton.critical_point[skeleton.critical_point.nfil>=3]
+
 
     if clean:
+        output_image = np.zeros(skeleton_mask.shape)
+        output_image[vert_df.z.to_numpy(),
+                     vert_df.y.to_numpy(),
+                     vert_df.x.to_numpy()] = 1
+
         vert_df = clean_vertex_image(output_image)
-    else:
-        vert_df = pd.DataFrame({'z': np.where(output_image > 0)[0],
-                                'y': np.where(output_image > 0)[1],
-                                'x': np.where(output_image > 0)[2]})
+
     return vert_df
 
 
@@ -205,6 +280,7 @@ def find_edges(skeleton_image,
     res = pd.DataFrame.from_dict({"idx": res.keys(), "value": res.values()})
     vert_ = res[res.value <= 2]['idx'].to_numpy()
     while len(vert_) > 0:
+        print(len(vert_))
         X = vert_df[['x', 'y', 'z']].values
         tree = BallTree(X, metric='euclidean')
         dist, ind = tree.query(X[int(vert_[0]-1):int(vert_[0])], 2)
@@ -300,6 +376,7 @@ def find_cell(edge_df):
     face_df : DataFrame of faces
     edge_df : DataFrame of ordered edges
     """
+    print("find cell")
     G = nx.from_pandas_edgelist(edge_df,
                                 source='srce',
                                 target='trgt',
