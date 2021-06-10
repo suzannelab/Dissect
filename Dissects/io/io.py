@@ -7,6 +7,7 @@ import exifread
 import numpy as np
 import pandas as pd
 
+from tifffile import tifffile
 from skimage.io import imread, imsave
 from tvtk.api import tvtk
 from astropy.io import fits
@@ -255,7 +256,7 @@ def save_fits(image, filename, path=None):
     logging.info('Saved file: {filename} into {path} directory')
 
 
-def save_image(image_array, filename, path=None):
+def save_image(image_array, filename, path=None, **kwargs):
     """ Save np.array image into tif file.
 
     Parameters
@@ -263,15 +264,35 @@ def save_image(image_array, filename, path=None):
     image_array : numpy array
     filename: str, name of fits file
     path: str,
+    **kwargs: metadata as x_size, y_size, z_size
     """
     if filename[-4:] != '.tif':
         filename = filename + '.tif'
     if path is None:
-        warnings.warn("Fits file will be saved in the working directory.")
+        warnings.warn("tif file will be saved in the working directory.")
         path = os.getcwd()
 
     filepath = os.path.join(path, filename)
-    imsave(filepath, image_array)
+
+    x_size = 1
+    y_size = 1
+    z_size = 1
+    if **kwargs is None:
+        warnings.warn("There is pixel/voxel size defined.")
+
+    else:
+        x_size = **kwargs["x_size"]
+        y_size = **kwargs["y_size"]
+        try:
+            z_size = **kwargs["z_size"]
+        
+
+    tifffile.imwrite(filepath,
+                     imagearray.astype('float32'),
+                     imagej=True,
+                     resolution=(1/x_size, 1/y_size),
+                     metadata={'spacing': z_size, 'unit': 'um',
+                               'axes': 'XYZ'})
 
     logging.info('Saved file: {filename} into {path} directory')
 
