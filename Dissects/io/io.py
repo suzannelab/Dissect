@@ -277,22 +277,23 @@ def save_image(image_array, filename, path=None, **kwargs):
     x_size = 1
     y_size = 1
     z_size = 1
-    if **kwargs is None:
+    if kwargs is None:
         warnings.warn("There is pixel/voxel size defined.")
 
     else:
-        x_size = **kwargs["x_size"]
-        y_size = **kwargs["y_size"]
+        x_size = kwargs["x_size"]
+        y_size = kwargs["y_size"]
         try:
-            z_size = **kwargs["z_size"]
-        
+            z_size = kwargs["z_size"]
+        except:
+            pass
 
     tifffile.imwrite(filepath,
-                     imagearray.astype('float32'),
+                     image_array.astype('float32'),
                      imagej=True,
                      resolution=(1/x_size, 1/y_size),
                      metadata={'spacing': z_size, 'unit': 'um',
-                               'axes': 'XYZ'})
+                               'axes': 'XYZCT'})
 
     logging.info('Saved file: {filename} into {path} directory')
 
