@@ -12,9 +12,9 @@ from ..utils.utils import pixel_to_um
 
 
 default_image_specs = {
-    "x_size": 1,
-    "y_size": 1,
-    "z_size": 1
+    "X_SIZE": 1,
+    "Y_SIZE": 1,
+    "Z_SIZE": 1
 }
 
 
@@ -44,20 +44,33 @@ def generate_segmentation(skeleton,
     vert_df, edge_df = find_edge(skeleton, vert_df, half_edge=True)
     face_df, edge_df = find_cell(edge_df)
 
+    points_df = find_points(edge_df)
+    
     vert_df['x_pix'] = vert_df['x']
     vert_df['y_pix'] = vert_df['y']
     vert_df['z_pix'] = vert_df['z']
 
-    pixel_to_um(vert_df, image_specs, ['x_pix', 'y_pix', 'z_pix'], list('xyz') )
+    pixel_to_um(vert_df, image_specs, ['x_pix', 'y_pix', 'z_pix'], list('xyz'))
+    pixel_to_um(points_df, image_specs, ['x_pix', 'y_pix', 'z_pix'], list('xyz'))
+
     
+    return face_df, edge_df, vert_df, points_df
 
-    return face_df, edge_df, vert_df
 
+def find_points(edge_df):
+    points_df = pd.DataFrame(
+        columns=['x_pix', 'y_pix', 'z_pix', 'edge', 'face'])
 
-def pixel_to_um(df, convert):
-    df['x_um'] = df['x']*convert['x_size']
-    df['y_um'] = df['y']*convert['y_size']
-    df['z_um'] = df['z']*convert['z_size']
+    for e, val in edge_df.iterrows():
+        for i in range(len(val['point_x'][0])):
+            dict_ = {'x_pix': val['point_x'][0][i],
+                     'y_pix': val['point_y'][0][i],
+                     'z_pix': val['point_z'][0][i],
+                     'edge': e,
+                     'face': val.face}
+            points_df = points_df.append(dict_,ignore_index=True)
+
+    return points_df
 
 
 def find_vertex(skeleton):
@@ -194,8 +207,8 @@ def generate_half_edge(edge_df, vert_df):
         va = [item for sublist in va for item in sublist]
         for v in va:
             dict_ = {'srce': v0,
-                 'trgt': v,
-                 }
+                     'trgt': v,
+                     }
             for c in edge_df.columns:
                 if (c != 'srce') & (c != 'trgt'):
                     dict_[c] = edge_df[
@@ -203,14 +216,14 @@ def generate_half_edge(edge_df, vert_df):
                         |
                         (edge_df.trgt == v0) & (edge_df.srce == v)
                     ][c].to_numpy()
-            
+
             new_edge_df.loc[
                 np.max(new_edge_df.index)+1
             ] = dict_
-            
+
             dict_ = {'srce': v,
-                 'trgt': v0,
-                 }
+                     'trgt': v0,
+                     }
             for c in edge_df.columns:
                 if (c != 'srce') & (c != 'trgt'):
                     dict_[c] = edge_df[
@@ -243,7 +256,6 @@ def find_cell(edge_df):
     face_df : DataFrame of faces
     edge_df : DataFrame of ordered edges
     """
-    print("find cell")
     G = nx.from_pandas_edgelist(edge_df,
                                 source='srce',
                                 target='trgt',
