@@ -45,15 +45,15 @@ def generate_segmentation(skeleton,
     face_df, edge_df = find_cell(edge_df)
 
     points_df = find_points(edge_df)
-    
+
     vert_df['x_pix'] = vert_df['x']
     vert_df['y_pix'] = vert_df['y']
     vert_df['z_pix'] = vert_df['z']
 
     pixel_to_um(vert_df, image_specs, ['x_pix', 'y_pix', 'z_pix'], list('xyz'))
-    pixel_to_um(points_df, image_specs, ['x_pix', 'y_pix', 'z_pix'], list('xyz'))
+    pixel_to_um(points_df, image_specs, [
+                'x_pix', 'y_pix', 'z_pix'], list('xyz'))
 
-    
     return face_df, edge_df, vert_df, points_df
 
 
@@ -68,7 +68,7 @@ def find_points(edge_df):
                      'z_pix': val['point_z'][0][i],
                      'edge': e,
                      'face': val.face}
-            points_df = points_df.append(dict_,ignore_index=True)
+            points_df = points_df.append(dict_, ignore_index=True)
 
     return points_df
 
@@ -81,7 +81,6 @@ def find_vertex(skeleton):
 
 
 def find_edge(skeleton, vert_df, half_edge=True):
-
     # find edges
     edge_df = pd.DataFrame(dtype='int')
 
@@ -90,48 +89,52 @@ def find_edge(skeleton, vert_df, half_edge=True):
             skeleton.filament.cp2 == i)][['cp1', 'cp2']])
         for start in start_cps:
             sc = start
-
+            list_sc = []
             filaments_id = []
             if sc != i:
                 # Get the first filament portion
-                try:
-                    filaments_id.append(skeleton.filament[(skeleton.filament.cp1 == i) | (skeleton.filament.cp2 == i) &
-                                                          (skeleton.filament.cp1 == sc) | (skeleton.filament.cp2 == sc)].index[0])
-                except:
-                    pass
+                list_sc.append(i)
+                filaments_id.append(skeleton.filament[(skeleton.filament.cp1 == i) | (skeleton.filament.cp2 == i) &
+                                                      (skeleton.filament.cp1 == sc) | (skeleton.filament.cp2 == sc)].index[0])
                 previous_sc = i
                 previous_previous_sc = previous_sc
                 previous_sc = sc
-                while skeleton.critical_point.loc[sc]['nfil'] < 3:
+
+                cut_before_end = 0
+                while (skeleton.critical_point.loc[sc]['nfil'] < 3) and (cut_before_end < 1000):
+
                     tmp_sc = np.unique(skeleton.filament[(skeleton.filament.cp1 == previous_sc) | (
                         skeleton.filament.cp2 == previous_sc)][['cp1', 'cp2']])
 
+                    sc = tmp_sc[0]
+
                     for sc in tmp_sc:
+                        fil_tmp = skeleton.filament[((skeleton.filament.cp1 == previous_sc) | (skeleton.filament.cp2 == previous_sc)) &
+                                                    ((skeleton.filament.cp1 == sc) | (skeleton.filament.cp2 == sc))].index[0]
+                        if (fil_tmp not in filaments_id) & (sc not in list_sc):
+                            list_sc.append(sc)
+                            filaments_id.append(fil_tmp)
 
-                        if (sc != previous_previous_sc) and (sc != previous_sc):
-
-                            try:
-                                filaments_id.append(skeleton.filament[(skeleton.filament.cp1 == previous_sc) | (skeleton.filament.cp2 == previous_sc) &
-                                                                      (skeleton.filament.cp1 == sc) | (skeleton.filament.cp2 == sc)].index[0])
-                            except:
-                                pass
                             previous_previous_sc = previous_sc
                             previous_sc = sc
                             break
+                    cut_before_end += 1
 
                 # Get coordinates from filament ids
+#                 filaments_id = np.unique(filaments_id)
                 pixel_x = skeleton.point[skeleton.point.filament.isin(
                     filaments_id)]['x'].to_numpy()
                 pixel_y = skeleton.point[skeleton.point.filament.isin(
                     filaments_id)]['y'].to_numpy()
                 pixel_z = skeleton.point[skeleton.point.filament.isin(
                     filaments_id)]['z'].to_numpy()
-#                 print(pixel_x)
+
                 edges = {'srce': i,
                          'trgt': sc,
                          'point_x': pixel_x,
                          'point_y': pixel_y,
-                         'point_z': pixel_z}
+                         'point_z': pixel_z,
+                         'filaments': filaments_id}
                 edge_df = edge_df.append(edges, ignore_index=True)
 
     edge_df.drop(edge_df[edge_df.srce == edge_df.trgt].index, inplace=True, )
@@ -270,7 +273,7 @@ def find_cell(edge_df):
         find = False
         for i in range(len(all_faces)):
             for j in range(len(order_faces)):
-                if len(set(order_faces[j]).intersection(all_faces[i])) > 0:
+                if len(set(order_faces[j]).intersection(all_faces[i])) >=2 :
                     order_faces.append(all_faces[i])
                     all_faces.remove(all_faces[i])
                     find = True
@@ -316,6 +319,11 @@ def find_cell(edge_df):
                 edge_df.loc[edge, 'face'] = cpt_face
             else:
                 print("there is a problem")
+                # print(f)
+                # print(tmp)
+                # print(tmp_e)
+                # print((edge_df.loc[edge]['face'].to_numpy()))
+                # print(edge)
 
         cpt_face += 1
 
