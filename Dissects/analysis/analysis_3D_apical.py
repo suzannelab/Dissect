@@ -24,10 +24,6 @@ def update_geom(face_df, edge_df, vert_df):
 
 def compute_normal(face_df, edge_df, vert_df):
     face_df.loc[-1] = np.zeros((face_df.shape[1]))
-    edge_df[['sz', 'sy', 'sx']] = vert_df.loc[edge_df.srce][[
-        'x_um', 'y_um', 'z_um']].to_numpy()
-    edge_df[['tz', 'ty', 'tx']] = vert_df.loc[edge_df.trgt][[
-        'x_um', 'y_um', 'z_um']].to_numpy()
 
 #     # update centroid face
 #     face_df[list('xyz')] = edge_df.groupby("face")[['sx','sy','sz']].mean()
@@ -43,6 +39,25 @@ def compute_normal(face_df, edge_df, vert_df):
     edge_df[['nz', 'ny', 'nx']] = normals
 
 
+def projected_points(face_df, edge_df, points_df, face, psi = 0):
+    points_df[['fz', 'fy', 'fx']] = face_df.loc[points_df.face.to_numpy()
+                                              ][['fz', 'fy', 'fx']].to_numpy()
+    points_df[['rz', 'ry', 'rx']] = points_df[['z', 'y', 'x']
+                                          ].to_numpy() - points_df[['fz', 'fy', 'fx']].to_numpy()
+    
+    rel_pos = points_df.query(f"face == {face}")[["rx", "ry", "rz"]]
+    rel_pos.index.name = "vert"
+    _, _, rotation = np.linalg.svd(
+        rel_pos.to_numpy().astype(float), full_matrices=False
+    )
+    if psi:
+        rotation = np.dot(rotation_matrix(psi, [0, 0, 1]), rotation)
+    rot_pos = pd.DataFrame(
+        np.dot(rel_pos, rotation.T), index=rel_pos.index, columns=list('xyz')
+    )
+    return rot_pos
+
+
 def morphology_analysis(face_df,
                         edge_df,
                         vert_df,
@@ -51,20 +66,16 @@ def morphology_analysis(face_df,
                         perimeter=True,
                         nb_neighbor=True,
                         aniso=True,
+                        j_orientation=True
                         ):
 
     update_geom(face_df, edge_df, vert_df)
+    compute_normal(face_df, edge_df, vert_df)
 
     if area:
-        # Approximate area, calculate with vertex and junction are approximated as straight line
-        edge_df['x'] = vert_df.loc[edge_df.trgt]['x'].to_numpy(
-        )-vert_df.loc[edge_df.srce]['x'].to_numpy()
-        edge_df['y'] = vert_df.loc[edge_df.trgt]['y'].to_numpy(
-        )-vert_df.loc[edge_df.srce]['y'].to_numpy()
-        edge_df['z'] = vert_df.loc[edge_df.trgt]['z'].to_numpy(
-        )-vert_df.loc[edge_df.srce]['z'].to_numpy()
+        # Approximate area
         edge_df["sub_area"] = (
-            np.linalg.norm(edge_df[list('xyz')], axis=1) / 2
+            np.linalg.norm(edge_df[['nx', 'ny', 'nz']], axis=1) / 2
         )
         face_df['area_approximate'] = _lvl_sum(
             edge_df, edge_df['sub_area'], 'face')
@@ -72,13 +83,14 @@ def morphology_analysis(face_df,
         # "real" area
         face_df['area'] = 0
         for a in face_df.index:
-            points = points_df[points_df.face == a][['x', 'y', 'z']].to_numpy()
-            hull = ConvexHull(points)
-            face_df.loc[a, 'area'] = hull.area
+            if a!=-1:
+                points = projected_points(face_df, edge_df, points_df, a)[['x','y']].to_numpy()
+                hull = ConvexHull(points)
+                face_df.loc[a, 'area'] = hull.volume
 
     if perimeter:
 
-        # Approximate perimeter
+        # Approximate perimeter    
         edge_df['length_approximate'] = np.sqrt(
             (edge_df.sx-edge_df.tx)**2+(edge_df.sy-edge_df.ty)**2+(edge_df.sz-edge_df.tz)**2).to_numpy()
         face_df['perimeter_approximate'] = edge_df.groupby('face')[
@@ -94,9 +106,15 @@ def morphology_analysis(face_df,
                                  (points_df[points_df.edge==e].iloc[i+1]['z'] - points_df[points_df.edge==e].iloc[i]['z'])**2)
             edge_df.loc[e, 'length'] = dist_
                 
-        face_df['perimeter'] = edge_df.groupby('face')[
-            'length'].sum()
-                
+        # face_df['perimeter'] = edge_df.groupby('face')[
+        #     'length'].sum()
+        # Perimeter with convexhull
+        for a in face_df.index:
+            if a!=-1:
+                points = projected_points(face_df, edge_df, points_df, a)[['x','y']].to_numpy()
+                hull = ConvexHull(points)
+                face_df.loc[a, 'perimeter'] = hull.area
+
 
     if nb_neighbor:
         face_df['nb_neighbor'] = edge_df.groupby('face')[('srce')].count()
@@ -139,8 +157,9 @@ def morphology_analysis(face_df,
             face_df.loc[f, 'orient_z'] = orientation[2]*180/np.pi
             face_df.loc[f, 'aniso'] = aniso
 
+    if j_orientation:
+        pass
 
-# sum_face(edge_df["sub_area"])
 
 
 def _lvl_sum(edge_df, df, lvl):
@@ -155,56 +174,75 @@ def _lvl_sum(edge_df, df, lvl):
     return df_.groupby(lvl).sum()
 
 
+
 def junction_intensity(image,
                        edge_df,
-                       new_column='intensity'):
+                       points_df,
+                       dilation=3, 
+                       new_column='intensity'
+                       ):
+    
+    """
+    """
 
-    edge_df[new_column] = -1
+    edge_df[new_column+'_mean'] = -1
+    edge_df[new_column+'_sum'] = -1
+    edge_df[new_column+'_std'] = -1
+    
     for e, val in edge_df.iterrows():
-        try:
-            z_ = np.fromstring(
-                val.points[0][1:-1].split('[')[1].split(']')[0], sep=',').astype('int')
-            y_ = np.fromstring(
-                val.points[0][1:-1].split('[')[2].split(']')[0], sep=',').astype('int')
-            x_ = np.fromstring(
-                val.points[0][1:-1].split('[')[3].split(']')[0], sep=',').astype('int')
+        x_ = list(points_df[points_df.edge==e]['x_pix'].to_numpy())
+        y_ = list(points_df[points_df.edge==e]['y_pix'].to_numpy())
+        z_ = list(points_df[points_df.edge==e]['z_pix'].to_numpy())
 
-            image_tmp = np.zeros(image.shape)
+        image_tmp = np.zeros(image.shape)
 
-            image_tmp[z_, y_, x_] = 1
-            image_tmp = sci.ndimage.morphology.binary_dilation(image_tmp,
-                                                               sci.ndimage.generate_binary_structure(3, 3)).astype(int)
-            edge_df.loc[e, new_column] = np.mean(
-                image[np.where(image_tmp == 1)])
-        except Exception as ex:
-            """
-            correspond aux petites jonction ajouté "à la main"
-            il faut retrouver les pixels pour pouvoir mesurer les jonctions...
-            """
-            print(e)
-            print(ex)
-            pass
+        image_tmp[z_, y_, x_] = 1
+
+        s = sci.ndimage.generate_binary_structure(dilation, dilation)
+        image_tmp = sci.ndimage.morphology.binary_dilation(image_tmp, s).astype(int)
+
+        edge_df.loc[e, new_column+'_mean'] = np.mean(image[np.where(image_tmp == 1)])
+        edge_df.loc[e, new_column+'_sum'] = np.sum(image[np.where(image_tmp == 1)])
+        edge_df.loc[e, new_column+'_std'] = np.std(image[np.where(image_tmp == 1)])
+            
+
 
 
 def face_intensity(image,
                    face_df,
                    edge_df,
                    vert_df,
-                   thicken,
+                   points_df,
+                   thickness,
                    pixel_size,
                    new_column='intensity'):
+
+    """
+
+    Parameters
+    ----------
+    thickness : float, half thickness of the face in um
+    """
+    update_geom(face_df, edge_df, vert_df)
+    compute_normal(face_df, edge_df, vert_df)
+
     face_df[new_column] = -1
+
     for f in face_df.index:
         img_face = enlarge_face_plane(image,
                                       face_df,
                                       edge_df,
                                       vert_df,
+                                      points_df,
                                       f,
-                                      thicken,
+                                      thickness,
                                       pixel_size)
+
         intensity_output = image*img_face
+
         face_df.loc[f, new_column] = np.mean(
             intensity_output[np.where(intensity_output > 0)])
+
 
 
 def enlarge_face_plane(image,
@@ -215,8 +253,7 @@ def enlarge_face_plane(image,
                        thicken,
                        pixel_size):
 
-    pixel_to_um(vert_df, pixel_size, list('xyz'), ['x_um', 'y_um', 'z_um'])
-    compute_normal(face_df, edge_df, vert_df)
+    
 
     n = (edge_df[edge_df.face == face_id].mean()[['nx', 'ny', 'nz']]/np.linalg.norm(
         edge_df[edge_df.face == face_id].mean()[['nx', 'ny', 'nz']])).to_numpy()
