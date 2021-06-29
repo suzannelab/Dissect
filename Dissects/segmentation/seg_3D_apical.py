@@ -55,6 +55,18 @@ def generate_segmentation(skeleton,
     pixel_to_um(points_df, image_specs, [
                 'x_pix', 'y_pix', 'z_pix'], list('xyz'))
 
+    # Mark face in the border 
+    # It remove more cell than expected...
+    edge_df['opposite'] = -1
+    for e, val in edge_df.iterrows():
+        tmp = edge_df[(edge_df.srce==val.trgt) & (edge_df.trgt== val.srce)].index.to_numpy()
+        if len(tmp)>0:
+            edge_df.loc[e, 'opposite'] = tmp
+            
+    face_df["border"] = 0
+    face_df.loc[edge_df[edge_df.opposite==-1]['face'].to_numpy(), 'border'] = 1
+
+
     return face_df, edge_df, vert_df, points_df
 
 
@@ -310,7 +322,6 @@ def find_cell(edge_df):
             break
 
     edge_df['face'] = -1
-    edge_df['orient'] = -1
 
     cpt_face = 1
 
@@ -352,5 +363,7 @@ def find_cell(edge_df):
 
         cpt_face += 1
 
+    edge_df.drop(edge_df[edge_df['face']==-1].index, inplace=True)
+    edge_df.reset_index(drop=True, inplace=True)
     face_df = pd.DataFrame(index=np.sort(edge_df.face.unique()))
     return face_df, edge_df
