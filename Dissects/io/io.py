@@ -292,7 +292,8 @@ def save_image(image_array, filename, path=None, **kwargs):
                      image_array.astype('float32'),
                      imagej=True,
                      resolution=(1/x_size, 1/y_size),
-                     metadata={'spacing': z_size, 'unit': 'um',
+                     metadata={'spacing': z_size,
+                               'unit': 'um',
                                'axes': 'XYZCT'})
 
     logging.info('Saved file: {filename} into {path} directory')
