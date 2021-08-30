@@ -239,134 +239,120 @@ def find_vertex(mask,
     vert_df= df_vertices2.drop( ['Cell_1','Cell_2','Cell_3','Cell_4', 'Cell_5'], axis=1)
     return vert_df, df_vertices2
 
-def junctions(mask, df_vertices, max_area):
-    """Create a dataframe of the cell junctions
-
-    Parameters
-    ----------
-    df_vertices: dataframe given by the 'vertices' function
-
-    Returns
-    -------
-    df_junction: dataframe with Cell1: first cell of the junction
-    				Cell2: second cell of the junction
-                                sx: x coordinate of the source point of the junction
-                                sx: y coordinate of the startpoint of the junction
-                                tx: x coordinate of the target point of the junction 
-                                ty: y coordinate of the target point of the junction
-                                angle: angle between the horizontal plane and the junction
-                                length: length of the junction
-    """
-    vert_df= df_vertices.drop( ['Cell_1','Cell_2','Cell_3','Cell_4', 'Cell_5'], axis=1)
-    columns_name = ['x_0',
-                    'y_0',
-                    'Cell_1',
-                    'Cell_2',
-                    'Cell_3',
-                    'Cell_4',
-                    'Cell_5']
-
-    init = np.zeros((1,8))
-    df_junctions = pd.DataFrame(columns=['Cell1','Cell2','srce', 'trgt',
-                                       'angle', 'length'])
-
-    for ind in range (0, df_vertices.shape[0]): #pour chaque vertex
-        cells_ind = np.array([df_vertices['Cell_1'][ind],
-                              df_vertices['Cell_2'][ind],
-                              df_vertices['Cell_3'][ind],
-                              df_vertices['Cell_4'][ind],
-                              df_vertices['Cell_5'][ind]])
-
-        for i in range (ind+1, df_vertices.shape[0]): # pour chaque autre vertex
 
 
-            cells_i = np.array([df_vertices['Cell_1'][i],
-                                df_vertices['Cell_2'][i],
-                                df_vertices['Cell_3'][i],
-                                df_vertices['Cell_4'][i],
-                                df_vertices['Cell_5'][i]])
+
+def find_cells(mask, skel, dist):
+
+    seg= segmentation(mask, size_auto_remove=False, min_area=2, max_area=10000, boundary_auto_remove=True)
+    vert_df, vert_df_int = skel_vertices(skel)
+    list_vertices1 = vert_df_int.values.tolist()
+    list_vertices1=np.array(list_vertices1).T
+    list_vertices1=tuple(list_vertices1)
+    thistuple = (list_vertices1[0], list_vertices1[1])
+    
+    #create dataframe with cells info
+    columns_name = ['x_0','y_0','Cell_1','Cell_2','Cell_3','Cell_4','Cell_5']
+    nb_vertices = len(list_vertices1[0])
+    init = np.zeros((nb_vertices , len(columns_name)))
+    df_vertices = pd.DataFrame(data=init, columns=columns_name)
+    liste0 = []
+    
+    #get index of cell associated to each vertex
+    for v in range(0, len(thistuple[0])):
+        carre = seg[max(0, thistuple[0][v]-dist) : min(thistuple[0][v]+(dist+1), seg.shape[0]-1),
+            max(0, thistuple[1][v]-dist) : min(thistuple[1][v]+(dist+1), seg.shape[1]-1)]
+        cells = np.unique(carre)
+        
+        if len(cells)>3:
+            df_vertices.loc[v]['x_0'] = thistuple[0][v]
+            df_vertices.loc[v]['y_0'] = thistuple[1][v]
+            df_vertices.loc[v]['Cell_1'] = cells[1]
+            df_vertices.loc[v]['Cell_2'] = cells[2]
+            df_vertices.loc[v]['Cell_3'] = cells[3]
+
+            if len(np.unique(carre)) == 4 :
+                df_vertices.loc[v]['Cell_4'] = 'Nan'
+                df_vertices.loc[v]['Cell_5'] = 'Nan'
+            if len(np.unique(carre)) == 5 :
+                df_vertices.loc[v]['Cell_4'] = cells[4]
+                df_vertices.loc[v]['Cell_5'] = 'Nan'
+            if len(np.unique(carre)) == 6 :
+                df_vertices.loc[v]['Cell_4'] = cells[4]
+                df_vertices.loc[v]['Cell_5'] = cells[5]
+        else:
+            liste0.append(v)
+
+    df_vertices=df_vertices.drop(liste0)
+        
+    ind = 0
+    while ind < len(df_vertices) :
+    #print(df_vertices.shape[0])
+        cells_ind = np.array([df_vertices['Cell_1'].iloc[ind],
+                              df_vertices['Cell_2'].iloc[ind],
+                              df_vertices['Cell_3'].iloc[ind],
+                              df_vertices['Cell_4'].iloc[ind],
+                              df_vertices['Cell_5'].iloc[ind]])
+
+        liste_x0 = [df_vertices['x_0'].iloc[ind]]
+        liste_y0 = [df_vertices['y_0'].iloc[ind]]
+        liste_i = []
+        liste_cellsi = [cells_ind]
+
+
+        for i in range(ind+1, len(df_vertices)):
+
+            cells_i = np.array([df_vertices['Cell_1'].iloc[i],
+                                df_vertices['Cell_2'].iloc[i],
+                                df_vertices['Cell_3'].iloc[i],
+                                df_vertices['Cell_4'].iloc[i],
+                                df_vertices['Cell_5'].iloc[i]])
+
 
             mask_TrueFalse = np.isin(cells_ind, cells_i)
 
-            if np.isin(1., cells_ind) and np.isin(1., cells_i):  #si le fond(=cellule1) fait parti des cellules communes
 
-                if np.sum(mask_TrueFalse) >= 3 :
 
-                    dict_junctions={'Cell1': cells_ind[np.where(mask_TrueFalse)][0],
-                                    'Cell2': cells_ind[np.where(mask_TrueFalse)][1],
-                                    'sx' : df_vertices['x_0'][ind],
-                                    'sy' : df_vertices['y_0'][ind],
-                                    'tx' : df_vertices['x_0'][i],
-                                    'ty' : df_vertices['y_0'][i],
-                                    'angle' : (np.arctan((df_vertices['y_0'][ind]-df_vertices['y_0'][i])
-                                        /(df_vertices['x_0'][ind]-df_vertices['x_0'][i])))*180/np.pi,
-                                    'length' : ((df_vertices['y_0'][ind]-df_vertices['y_0'][i])
-                                        /(df_vertices['x_0'][ind]-df_vertices['x_0'][i])),
-                                    'srce': ind,
-                                    'trgt' :i
-                   }
-
-                    df_junctions=df_junctions.append(dict_junctions, ignore_index = True)
-
-            else:
-
-                if np.sum(mask_TrueFalse) >= 2 :
-
-                    dict_junctions={'Cell1': cells_ind[np.where(mask_TrueFalse)][0],
-                    'Cell2': cells_ind[np.where(mask_TrueFalse)][1],
-                    'sx' : df_vertices['x_0'][ind],
-                    'sy' : df_vertices['y_0'][ind],
-                    'tx' : df_vertices['x_0'][i],
-                    'ty' : df_vertices['y_0'][i],
-                    'angle' : (np.arctan((df_vertices['y_0'][ind]-df_vertices['y_0'][i])
-                                        /(df_vertices['x_0'][ind]-df_vertices['x_0'][i])))*180/np.pi,
-                    'length' : np.sqrt((df_vertices['y_0'][ind]-df_vertices['y_0'][i])**2
-                                        +(df_vertices['x_0'][ind]-df_vertices['x_0'][i])**2),
-                    'srce': ind,
-                    'trgt': i
-                   }
-
-                    df_junctions=df_junctions.append(dict_junctions, ignore_index = True)
-                    
-    columns=['face', 'srce', 'trgt']
-    init = np.zeros(((df_junctions.shape[0])*2, 3))
-    edge_df = pd.DataFrame(data=init, columns=columns)
-    ind=0
-   
-    for i in range (0, df_junctions.shape[0]):
     
-        edge_df['face'][ind]=df_junctions['Cell1'][i]
-        edge_df['srce'][ind]=df_junctions['srce'][i]
-        edge_df['trgt'][ind]=df_junctions['trgt'][i]
+            if np.sum(mask_TrueFalse) > 3 and np.isin(1., cells_i) and np.isin(1., cells_ind):
+                liste_cellsi.append(cells_i)
+                liste_i.append(df_vertices.axes[0][i])
+                liste_x0.append(df_vertices['x_0'].iloc[i])
+                liste_y0.append(df_vertices['y_0'].iloc[i])
 
-        edge_df['face'][ind+1]=df_junctions['Cell2'][i]
-        edge_df['srce'][ind+1]=df_junctions['trgt'][i]
-        edge_df['trgt'][ind+1]=df_junctions['srce'][i]
-    
-        ind=ind+2
-    
+            if np.sum(mask_TrueFalse) >= 3 and np.isin(1., cells_i)==False and np.isin(1., cells_ind)==False:
+                liste_cellsi.append(cells_i)
+                liste_i.append(df_vertices.axes[0][i])
+                liste_x0.append(df_vertices['x_0'].iloc[i])
+                liste_y0.append(df_vertices['y_0'].iloc[i])
 
+        df_vertices['x_0'].iloc[ind]=int(np.round(np.mean(liste_x0)))
+        df_vertices['y_0'].iloc[ind]=int(np.round(np.mean(liste_y0)))
 
-    seg_nobound = segmentation(mask, size_auto_remove=False, min_area=0, max_area=max_area, boundary_auto_remove=True)
-    for i in range(edge_df.shape[0]):
-        segmentationi = np.zeros_like(mask)
-        segmentationi[np.where(seg_nobound == edge_df.face[i])] = 1
-        com=ndimage.measurements.center_of_mass(segmentationi)
+        ucells = np.unique(liste_cellsi)
 
-        #calculate angle
-        p1=np.array([vert_df.x_0[edge_df.srce[i]], vert_df.y_0[edge_df.srce[i]]])
-        p2=np.array([vert_df.x_0[edge_df.trgt[i]], vert_df.y_0[edge_df.trgt[i]]])
-        angle=math.atan2(p2[1]-com[1], p2[0]-com[0])-math.atan2(p1[1]-com[1], p1[0]-com[0])
+        df_vertices['Cell_1'].iloc[ind] = ucells[0]
         
-        if np.sin(angle)<0:
-            d=edge_df.srce[i]
-            e=edge_df.trgt[i]
-            edge_df.srce[i]=e
-            edge_df.trgt[i]=d  
-                    
+        if len(ucells)>1:
+            df_vertices['Cell_2'].iloc[ind] = ucells[1]
+        if len(ucells)>2:
+            df_vertices['Cell_3'].iloc[ind] = ucells[2]
+        if len(ucells)>3:
+            df_vertices['Cell_4'].iloc[ind] = ucells[3]
+        if len(ucells)>4:
+            df_vertices['Cell_5'].iloc[ind] = ucells[4]
+
+#print(liste_i)
+        df_vertices=df_vertices.drop(liste_i)
+
+        ind+=1
+            
+        df_vertices=df_vertices.reset_index(drop=True)
+
+    return df_vertices
+
                 
     return df_junctions, edge_df 
-
 
 def generate_mesh(mask, seg=None, dilation_width=1):
     """ Generate mesh
