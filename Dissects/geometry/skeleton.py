@@ -26,7 +26,7 @@ class Skeleton():
                   we DO NOT take the integer part of xyz values for filaments. ")
         if 'z' in self.critical_point.columns:
             self.critical_point[list('xyz')] = self.critical_point[
-                np.round(list('xyz'),0)].astype(float)
+                list('xyz')].astype(float)
             self.point[list('xyz')] = self.point[list('xyz')].astype(float)
         else:
             self.critical_point[list('xy')] = self.critical_point[
