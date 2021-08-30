@@ -1,5 +1,5 @@
 import itertools
-
+import logging 
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -8,21 +8,29 @@ from io import StringIO
 from scipy import ndimage
 from sklearn.neighbors import KDTree, BallTree
 
+from ..utils.utils import pixel_to_um
 
-def generate_segmentation(skeleton_image,
-                          free_edges=False,
-                          kernel_path='../Dissects/segmentation/3d_pattern.csv',
-                          clean=True, 
+logger = logging.getLogger(name=__name__)
+MAX_ITER = 10
+
+
+default_image_specs = {
+    "X_SIZE": 1,
+    "Y_SIZE": 1,
+    "Z_SIZE": 1
+}
+def generate_segmentation(skeleton,
+                          clean=True,
+                          **kwargs
                           ):
     """
     Generate three dataframe from binary skeleton image which contains informations
     about faces, edges and vertex
+    Put coordinates of vertex into um. Keep pixel position in "xyz_pix" columns. 
 
     Parameters
     ----------
-    skeleton_image : binary np.array; background=0, skeleton=1
-    free_edges     : bool; find edge with one side which is not connected
-    kernel_path    : str; path to csv file contains list of pattern for vertex detection
+    skeleton : binary np.array; background=0, skeleton=1
 
     Return
     ------
@@ -30,11 +38,154 @@ def generate_segmentation(skeleton_image,
     edge_df : DataFrame
     vert_df : DataFrame
     """
-    vert_df = find_vertex(skeleton_image, free_edges, kernel_path, clean)
-    edge_df = find_edges(skeleton_image, vert_df, half_edge=True)
+    image_specs = default_image_specs
+    image_specs.update(**kwargs)
+
+    vert_df = find_vertex(skeleton)
+    vert_df, edge_df = find_edge(skeleton, vert_df, half_edge=True)
     face_df, edge_df = find_cell(edge_df)
 
-    return face_df, edge_df, vert_df
+    points_df = find_points(edge_df)
+
+    vert_df['x_pix'] = vert_df['x']
+    vert_df['y_pix'] = vert_df['y']
+    vert_df['z_pix'] = vert_df['z']
+
+    pixel_to_um(vert_df, image_specs, ['x_pix', 'y_pix', 'z_pix'], list('xyz'))
+    pixel_to_um(points_df, image_specs, [
+                'x_pix', 'y_pix', 'z_pix'], list('xyz'))
+
+    # Mark face in the border 
+    # It remove more cell than expected...
+    edge_df['opposite'] = -1
+    for e, val in edge_df.iterrows():
+        tmp = edge_df[(edge_df.srce==val.trgt) & (edge_df.trgt== val.srce)].index.to_numpy()
+        if len(tmp)>0:
+            edge_df.loc[e, 'opposite'] = tmp
+            
+    face_df["border"] = 0
+    face_df.loc[edge_df[edge_df.opposite==-1]['face'].to_numpy(), 'border'] = 1
+
+
+    return face_df, edge_df, vert_df, points_df
+
+
+def find_points(edge_df):
+    points_df = pd.DataFrame(
+        columns=['x_pix', 'y_pix', 'z_pix', 'edge', 'face'])
+
+    for e, val in edge_df.iterrows():
+        for i in range(len(val['point_x'][0])):
+            dict_ = {'x_pix': val['point_x'][0][i],
+                     'y_pix': val['point_y'][0][i],
+                     'z_pix': val['point_z'][0][i],
+                     'edge': e,
+                     'face': val.face}
+            points_df = points_df.append(dict_, ignore_index=True)
+
+    return points_df
+
+
+def find_vertex(skeleton):
+    """ 
+    Extract vertex from DisperSE skeleton. 
+    As we use output of DisperSE for determined vertices. You need to process the breakdown 
+    part to have the correct placement of vertices. 
+    See http://www2.iap.fr/users/sousbie/web/html/index55a0.html?category/Quick-start for more information
+
+    Parameters
+    ----------
+    skeleton : binary np.array; background=0, skeleton=1
+
+    Return
+    ------
+    vert_df : DataFrame
+
+    """
+    save_column = list('xyz')[:skeleton.specs['ndims']]
+    save_column.append('nfil')
+    vert_df = skeleton.critical_point[skeleton.critical_point.nfil >= 3][save_column]
+    return vert_df
+
+
+def find_edge(skeleton, vert_df, half_edge=True):
+    """
+    Extract edges. Follow filaments from one vertex to another vertex, and define it as edge.
+
+    Parameters
+    ----------
+    skeleton  : skel object
+    vert_df   : DataFrame of vertices
+    half_edge : boolean; 
+
+    Return
+    ------
+    face_df : DataFrame
+    edge_df : DataFrame
+    vert_df : DataFrame
+    """
+    edge_df = pd.DataFrame(dtype='int')
+
+    for i, val in vert_df.iterrows():
+        start_cps = np.unique(skeleton.filament[(skeleton.filament.cp1 == i) | (
+            skeleton.filament.cp2 == i)][['cp1', 'cp2']])
+        for start in start_cps:
+            sc = start
+
+            filaments_id = []
+            if sc != i:
+                # Get the first filament portion
+                
+                filaments_id.append(skeleton.filament[((skeleton.filament.cp1 == i) & (skeleton.filament.cp2 == sc)) |
+                                                      ((skeleton.filament.cp1 == sc)& (skeleton.filament.cp2 == i))].index[0])
+                
+                previous_sc = i
+                previous_previous_sc = previous_sc
+                previous_sc = sc
+                while skeleton.critical_point.loc[sc]['nfil'] < 3:
+                    tmp_sc = np.unique(skeleton.filament[(skeleton.filament.cp1 == previous_sc) | (
+                        skeleton.filament.cp2 == previous_sc)][['cp1', 'cp2']])
+
+                    for sc in tmp_sc:
+
+                        if (sc != previous_previous_sc) and (sc != previous_sc):
+
+                            
+                            filaments_id.append(skeleton.filament[((skeleton.filament.cp1 == previous_sc) & (skeleton.filament.cp2 == sc)) |
+                                                                  ((skeleton.filament.cp1 == sc) & (skeleton.filament.cp2 == previous_sc))].index[0])
+                    
+                            previous_previous_sc = previous_sc
+                            previous_sc = sc
+                            break
+
+                # Get coordinates from filament ids
+                pixel_x = skeleton.point[skeleton.point.filament.isin(
+                    filaments_id)]['x'].to_numpy()
+                pixel_y = skeleton.point[skeleton.point.filament.isin(
+                    filaments_id)]['y'].to_numpy()
+                pixel_z = skeleton.point[skeleton.point.filament.isin(
+                    filaments_id)]['z'].to_numpy()
+#                 print(pixel_x)
+                edges = {'srce': i,
+                         'trgt': sc,
+                         'point_x': pixel_x,
+                         'point_y': pixel_y,
+                         'point_z': pixel_z,
+                         'filaments':filaments_id}
+                edge_df = edge_df.append(edges, ignore_index=True)
+
+    edge_df.drop(edge_df[edge_df.srce == edge_df.trgt].index, inplace=True, )
+    edge_df['min'] = np.min(edge_df[['srce', 'trgt']], axis=1)
+    edge_df['max'] = np.max(edge_df[['srce', 'trgt']], axis=1)
+    edge_df['srce'] = edge_df['min']
+    edge_df['trgt'] = edge_df['max']
+    edge_df.drop(['min', 'max'], axis=1, inplace=True)
+    edge_df.drop_duplicates(inplace=True, subset=['srce', 'trgt'])
+    edge_df.reset_index(drop=True, inplace=True)
+
+    if half_edge:
+        edge_df = generate_half_edge(edge_df, vert_df)
+    return vert_df, edge_df
 
 
 def clean_vertex_image(vertex_image):
@@ -75,172 +226,6 @@ def clean_vertex_image(vertex_image):
     return vert_df
 
 
-def find_vertex(skeleton_mask,
-                free_edges=False,
-                kernel_path='../Dissects/segmentation/3d_pattern.csv',
-                clean=True):
-    """
-    Generate vert_df table from binary image with vertex only
-    Advice: make sure to have a skeletonize the output of disperse
-
-    Parameters
-    ----------
-    skeleton_mask : 
-    free_edges    : bool; if True, find vertex extremity
-    kernel_path   : str; path to csv file contains list of pattern for vertex detection
-
-    Return
-    ------
-    vert_df: DataFrame of vertex 
-
-    TODO: need to be improve
-    """
-
-    kernel = np.array(pd.read_csv(kernel_path, header=None))
-    kernel = kernel.reshape((int(kernel.shape[0]/9), 3, 3, 3))
-
-    output_image = np.zeros(skeleton_mask.shape)
-
-    for i in np.arange(len(kernel)):
-        out = ndimage.binary_hit_or_miss(skeleton_mask, kernel[i])
-        output_image = output_image + out
-
-    if free_edges == True:
-        kernel = kernels_extremity()
-        for i in np.arange(len(kernel)):
-            out = ndimage.binary_hit_or_miss(skeleton_mask, kernel[i])
-            output_image = output_image + out
-
-    if clean:
-        vert_df = clean_vertex_image(output_image)
-    else:
-        vert_df = pd.DataFrame({'z': np.where(output_image > 0)[0],
-                                'y': np.where(output_image > 0)[1],
-                                'x': np.where(output_image > 0)[2]})
-    return vert_df
-
-
-def find_edges(skeleton_image,
-               vert_df,
-               half_edge=True):
-    """
-    Find edges with vertex informations. 
-
-    Parameters
-    ----------
-    skeleton_image : binary np.array; background=0, skeleton=1
-    vert_df        : dataframe
-    half_edge      : bool
-
-    Return
-    ------
-    edge_df : Dataframe of edges
-    """
-    s = ndimage.generate_binary_structure(3, 3)
-    
-    # remove vertex + 3x3x3 from initial image
-    vertex_img = np.zeros(skeleton_image.shape)
-    vertex_img[vert_df['z'].to_numpy(),
-               vert_df['y'].to_numpy(),
-               vert_df['x'].to_numpy()] = 1
-
-    vertex_dilation = ndimage.morphology.binary_dilation(
-        vertex_img, structure=s)
-    skeleton_image = skeleton_image/np.max(skeleton_image)
-    skeleton_without_vertex = skeleton_image * ~vertex_dilation
-
-    # Labeled group of isolated pixel which correspond to vertex
-    labeled_array, num_features = ndimage.label(
-        skeleton_without_vertex, structure=s)
-
-    # labeled_array
-    binary_edges = np.zeros(labeled_array.shape)
-    binary_edges = np.where(labeled_array > 0, 1, 0)
-    binary_edges = 1.0 * (labeled_array > 0)
-
-    # Initiate edge_df dataframe
-    edge_df = pd.DataFrame(index=range(1, num_features+1),
-                           columns=['srce', 'trgt'], dtype='int')
-
-    for i, val in vert_df.iterrows():
-        img_vert = np.zeros(skeleton_image.shape)
-        img_vert[val.z, val.y, val.x] = 1
-
-        img_vert_dilate = ndimage.morphology.binary_dilation(
-            img_vert, structure=s)
-        img_corresponding_vertex = img_vert_dilate + binary_edges
-        while np.count_nonzero(img_corresponding_vertex == 2) < 2:
-            img_vert_dilate = ndimage.morphology.binary_dilation(
-                img_vert_dilate, structure=s)
-            img_corresponding_vertex = img_vert_dilate + binary_edges
-
-        edges = labeled_array[np.where(img_corresponding_vertex == 2)]
-        for e in np.unique(edges):
-            if np.isnan(edge_df.loc[e]['srce']):
-                edge_df.loc[e]['srce'] = i
-            elif np.isnan(edge_df.loc[e]['trgt']):
-                edge_df.loc[e]['trgt'] = i
-            else:
-                print("problem:", str(i))
-                print(edge_df.loc[e])
-
-    # Add pixel from the real shape of edge
-    tmp = []
-    for e in edge_df.index:
-        tmp.append(str(np.where(labeled_array == e)))
-    edge_df['points'] = tmp
-    edge_df.dropna(axis=0, inplace=True)
-
-    # Recover small lost junctions
-    # Count junction associate to a vertex
-    srce_count = np.unique(edge_df.srce, return_counts=True)
-    trgt_count = np.unique(edge_df.trgt, return_counts=True)
-    res = {}
-    for i, v in zip(srce_count[0], srce_count[1]):
-        res[i] = res.get(i, 0)+v
-
-    for i, v in zip(trgt_count[0], trgt_count[1]):
-        res[i] = res.get(i, 0)+v
-
-    res = pd.DataFrame.from_dict({"idx": res.keys(), "value": res.values()})
-    vert_ = res[res.value <= 2]['idx'].to_numpy()
-    while len(vert_) > 0:
-        X = vert_df[['x', 'y', 'z']].values
-        tree = BallTree(X, metric='euclidean')
-        dist, ind = tree.query(X[int(vert_[0]-1):int(vert_[0])], 2)
-
-        edge_df.loc[edge_df.index.max()+1] = {'srce': vert_df.index[ind[0][0]],
-                                              'trgt': vert_df.index[ind[0][1]]}
-
-        # Count junction associate to a vertex
-        srce_count = np.unique(edge_df.srce, return_counts=True)
-        trgt_count = np.unique(edge_df.trgt, return_counts=True)
-        res = {}
-        for i, v in zip(srce_count[0], srce_count[1]):
-            res[i] = res.get(i, 0)+v
-
-        for i, v in zip(trgt_count[0], trgt_count[1]):
-            res[i] = res.get(i, 0)+v
-
-        res = pd.DataFrame.from_dict(
-            {"idx": res.keys(), "value": res.values()})
-        vert_ = res[res.value <= 2]['idx'].to_numpy()
-
-    # remove duplicate edges
-    edge_df['min'] = np.min(edge_df[['srce', 'trgt']], axis=1)
-    edge_df['max'] = np.max(edge_df[['srce', 'trgt']], axis=1)
-    edge_df['srce'] = edge_df['min']
-    edge_df['trgt'] = edge_df['max']
-    edge_df.drop(['min', 'max'], axis=1, inplace=True)
-    edge_df.drop_duplicates(inplace=True, subset=['srce', 'trgt'])
-    edge_df.reset_index(drop=True, inplace=True)
-
-    if half_edge:
-        edge_df = generate_half_edge(edge_df, vert_df)
-
-    return edge_df
-
-
 def generate_half_edge(edge_df, vert_df):
     """
     Generate half edge dataframe from edge and vert data frame
@@ -254,31 +239,42 @@ def generate_half_edge(edge_df, vert_df):
     ------
     new_edge_df : DataFrame of half edge
     """
-    new_edge_df = pd.DataFrame(data=[[0, 0, 0]], columns=edge_df.columns)
+    new_edge_df = pd.DataFrame(
+        data=[np.zeros(len(edge_df.columns))], columns=edge_df.columns, dtype=object)
     for v0, data in vert_df.iterrows():
         va = [edge_df[(edge_df.srce == v0)]['trgt'].to_numpy()]
         va.append(edge_df[(edge_df.trgt == v0)]['srce'].to_numpy())
         va = [item for sublist in va for item in sublist]
         for v in va:
-            new_edge_df.loc[
-                np.max(new_edge_df.index)+1
-            ] = {'srce': v0,
-                 'trgt': v,
-                 'points': edge_df[
-                     ((edge_df.srce == v0) & (edge_df.trgt == v))
-                     |
-                     (edge_df.trgt == v0) & (edge_df.srce == v)
-                 ]['points'].to_numpy()}
+            dict_ = {'srce': v0,
+                     'trgt': v,
+                     }
+            for c in edge_df.columns:
+                if (c != 'srce') & (c != 'trgt'):
+                    dict_[c] = edge_df[
+                        ((edge_df.srce == v0) & (edge_df.trgt == v))
+                        |
+                        (edge_df.trgt == v0) & (edge_df.srce == v)
+                    ][c].to_numpy()
 
             new_edge_df.loc[
                 np.max(new_edge_df.index)+1
-            ] = {'srce': v,
-                 'trgt': v0,
-                 'points': edge_df[
-                     ((edge_df.srce == v0) & (edge_df.trgt == v))
-                     |
-                     (edge_df.trgt == v0) & (edge_df.srce == v)
-                 ]['points'].to_numpy()}
+            ] = dict_
+
+            dict_ = {'srce': v,
+                     'trgt': v0,
+                     }
+            for c in edge_df.columns:
+                if (c != 'srce') & (c != 'trgt'):
+                    dict_[c] = edge_df[
+                        ((edge_df.srce == v0) & (edge_df.trgt == v))
+                        |
+                        (edge_df.trgt == v0) & (edge_df.srce == v)
+                    ][c].to_numpy()
+
+            new_edge_df.loc[
+                np.max(new_edge_df.index)+1
+            ] = dict_
 
     new_edge_df.drop(index=0, axis=0, inplace=True)
     new_edge_df.drop_duplicates(inplace=True, subset=['srce', 'trgt'])
@@ -314,7 +310,7 @@ def find_cell(edge_df):
         find = False
         for i in range(len(all_faces)):
             for j in range(len(order_faces)):
-                if len(set(order_faces[j]).intersection(all_faces[i])) > 0:
+                if len(set(order_faces[j]).intersection(all_faces[i])) >=2 :
                     order_faces.append(all_faces[i])
                     all_faces.remove(all_faces[i])
                     find = True
@@ -326,7 +322,6 @@ def find_cell(edge_df):
             break
 
     edge_df['face'] = -1
-    edge_df['orient'] = -1
 
     cpt_face = 1
 
@@ -359,10 +354,17 @@ def find_cell(edge_df):
             if len(np.unique(edge_df.loc[edge]['face'].to_numpy())) == 1:
                 edge_df.loc[edge, 'face'] = cpt_face
             else:
-                print("there is a problem")
+                logger.warning("there is a problem")
+                # print(f)
+                # print(tmp)
+                # print(tmp_e)
+                # print((edge_df.loc[edge]['face'].to_numpy()))
+                # print(edge)
 
         cpt_face += 1
 
+    edge_df.drop(edge_df[edge_df['face']==-1].index, inplace=True)
+    edge_df.reset_index(drop=True, inplace=True)
     face_df = pd.DataFrame(index=np.sort(edge_df.face.unique()))
     return face_df, edge_df
 
