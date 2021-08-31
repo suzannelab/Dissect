@@ -43,6 +43,7 @@ def load_NDskl(filename):
     fil_df : pd.DataFrame
     fil_point : pd.DataFrame
     specs : Dict
+    cp_filament_info : Dict
 
     """
     specs = {}
@@ -85,10 +86,14 @@ def load_NDskl(filename):
                 # l2
                 data['nfil'] = int(_readline(f))
                 # l3-l_num_fil
-                for _ in range(data['nfil']):
+                cp_filament_info[i] = {'destcritid': [None] * data['nfil'],
+                                           'fillId': [None] * data['nfil']}
+                for j in range(data['nfil']):
                     line = _readline(f).split()
-                    cp_filament_info[i] = {'destcritid': int(line[0]),
-                                           'fillId': int(line[1])}
+                    #cp_filament_info[i] = {'destcritid': int(line[0]),
+                    #                       'fillId': int(line[1])}
+                    cp_filament_info[i]['destcritid'][j] = int(line[0])
+                    cp_filament_info[i]['fillId'][j] = int(line[1])
                 # Put information in DataFrame
                 datas[i] = data
             cp_df = pd.DataFrame.from_dict(datas, orient='index')
@@ -161,7 +166,7 @@ def load_NDskl(filename):
         # merge cp_df and cp_supp
         fil_points = pd.concat([fil_points, fil_supp], axis=1, sort=False)
 
-    return cp_df, fil_df, fil_points, specs
+    return cp_df, fil_df, fil_points, specs, cp_filament_info
 
 
 def load_image(path):

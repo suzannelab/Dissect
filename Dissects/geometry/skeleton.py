@@ -21,20 +21,22 @@ class Skeleton():
         self.point = point_df
         self.specs = specs
 
-        warnings.warn("Has pixel can be half pixel from DisPerSE output, \
-                  we take the integer part of xyz values. ")
+        warnings.warn("As pixel can be half pixel from DisPerSE output, \
+                  we DO NOT take the integer part of xyz values for critical points \
+                  we DO NOT take the integer part of xyz values for filaments. ")
         if 'z' in self.critical_point.columns:
             self.critical_point[list('xyz')] = self.critical_point[
-                list('xyz')].astype(int)
-            self.point[list('xyz')] = self.point[list('xyz')].astype(int)
+                list('xyz')].astype(float)
+            self.point[list('xyz')] = self.point[list('xyz')].astype(float)
         else:
             self.critical_point[list('xy')] = self.critical_point[
-                list('xy')].astype(int)
-            self.point[list('xy')] = self.point[list('xy')].astype(int)
+                list('xy')].astype(float)
+            self.point[list('xy')] = self.point[list('xy')].astype(float)
 
     def remove_lonely_cp(self):
         """ Remove critical point which are not conected to a filament.
         """
+        self.critical_point['id_original'] = self.critical_point.index
         self.critical_point['id'] = self.critical_point.index
         connected_cp = np.concatenate((self.filament.cp1.unique(),
                                        self.filament.cp2.unique()))
@@ -67,7 +69,7 @@ class Skeleton():
         todo:: Reduire/Supprimer les boucles
         """
         tip_cp = self.critical_point[self.critical_point['nfil'] == 1].index
-
+        self.filament['id_original'] = self.filament.index
         while len(tip_cp) > 0:
 
             # Find cp connected to 1 filament
