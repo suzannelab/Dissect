@@ -165,9 +165,13 @@ def load_NDskl(filename):
             fil_supp = pd.DataFrame.from_dict(datas, orient='index')
         # merge cp_df and cp_supp
         fil_points = pd.concat([fil_points, fil_supp], axis=1, sort=False)
+        
+    cp_filinfo_df = pd.DataFrame(data={'destcritid': [cp_filament_info[i]['destcritid']
+                                                 for i in range(len(cp_filament_info))],
+                             'fillId': [cp_filament_info[i]['fillId']
+                                                 for i in range(len(cp_filament_info))]})
 
-    return cp_df, fil_df, fil_points, specs, cp_filament_info
-
+    return cp_df, fil_df, fil_points, specs, cp_filinfo_df
 
 def load_image(path):
     """ Import a stack of images .TIF in a np.array.
