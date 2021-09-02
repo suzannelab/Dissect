@@ -216,6 +216,7 @@ def load_skeleton(filestore, data_names=['critical_point', 'filament', 'point'])
     return data
 
 
+
 def save_skeleton(skeleton, filename, path=None):
     """ Save skeleton object as HDF5 file
 
@@ -232,7 +233,7 @@ def save_skeleton(skeleton, filename, path=None):
         filename = filename + '.hf5'
     if path is None:
         warnings.warn("Fits file will be saved in the working directory. \
-                       Or maybe path is specify in filename...")
+                       Or maybe path is specified in filename...")
         path = os.getcwd()
 
     filestore = os.path.join(path, filename)
@@ -241,7 +242,7 @@ def save_skeleton(skeleton, filename, path=None):
         store.put('critical_point', skeleton.critical_point)
         store.put('filament', skeleton.filament)
         store.put('point', skeleton.point)
-
+        store.put('cp_fil_info', skeleton.cp_fil_info)
 
 def save_fits(image, filename, path=None):
     """ Convert and save an np.array image into fits file to run Disperse.
