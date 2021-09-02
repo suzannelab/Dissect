@@ -208,7 +208,7 @@ def load_image(path):
     return image, metadata
 
 
-def load_skeleton(filestore, data_names=['critical_point', 'filament', 'point']):
+def load_skeleton(filestore, data_names=['critical_point', 'filament', 'point',  'cp_fil_info']):
     if not os.path.isfile(filestore):
         raise FileNotFoundError("file %s not found" % filestore)
     with pd.HDFStore(filestore) as store:
