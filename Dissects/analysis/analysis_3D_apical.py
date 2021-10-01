@@ -216,7 +216,7 @@ def face_intensity(image,
 
     Return
     ------
-    all_enlarge_face: np.array, of all enlarge faces
+    all_enlarge_face_id: np.array, of all enlarge faces
     """
     image_no_junction = np.zeros(image.shape)
     image_no_junction[points_df.z_pix.astype(int), points_df.y_pix.astype(int), points_df.x_pix.astype(int)] = 1
@@ -227,7 +227,7 @@ def face_intensity(image,
     image_no_junction = image * image_no_junction
     
     
-    all_enlarge_face = np.zeros(image.shape)
+    all_enlarge_face_id = np.zeros(image.shape)
     update_geom(face_df, edge_df, vert_df)
     compute_normal(face_df, edge_df, vert_df)
 
@@ -241,12 +241,14 @@ def face_intensity(image,
                                       f,
                                       thickness,
                                       pixel_size)
-        
+        z, y, x = np.where(img_face>0)
+        all_enlarge_face_id[z,y,x] = f+1
+
+
         intensity_output = image_no_junction*img_face
         face_df.loc[f, new_column] = np.mean(
             intensity_output[np.where(intensity_output > 0)])
-        all_enlarge_face = all_enlarge_face+img_face
-    return all_enlarge_face
+    return all_enlarge_face_id
 
 
 def enlarge_face_plane(image,
