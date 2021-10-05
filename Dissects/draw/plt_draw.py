@@ -3,6 +3,7 @@ import random
 import pandas as pd
 import numpy as np
 
+import matplotlib as mpl
 from matplotlib.colors import ListedColormap
 import matplotlib.pyplot as plt
 

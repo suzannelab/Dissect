@@ -66,7 +66,8 @@ def morphology_analysis(face_df,
                         perimeter=True,
                         nb_neighbor=True,
                         aniso=True,
-                        j_orientation=True
+                        j_orientation=True,
+                        angle_degree=False
                         ):
 
     update_geom(face_df, edge_df, vert_df)
@@ -150,11 +151,20 @@ def morphology_analysis(face_df,
             points = points_df[points_df.edge == e][['x', 'y', 'z']].to_numpy(
                             ).astype("float") - edge_df.loc[e][['sx','sy','sz']].to_numpy().astype("float")
 
-            # Measure cell anisotropie
-            u, s, vh = np.linalg.svd(points)
+            # Measure edge orientation according to xy plan
+            edge_df['orientation_xy'] = np.arctan2(edge_df.ty-edge_df.sy,
+                                                   edge_df.tx-edge_df.sx)
 
-            ocoords = ["orientation" + u for u in list('xyz')]
-            edge_df.loc[e, ocoords] = vh[0, :]
+            edge_df['orientation_xz'] = np.arctan2(edge_df.tz-edge_df.sz,
+                                                   edge_df.tx-edge_df.sx)
+
+            edge_df['orientation_yz'] = np.arctan2(edge_df.tz-edge_df.sz,
+                                                   edge_df.ty-edge_df.sy)
+
+            if angle_degree:
+                edge_df['orientation_xy'] = edge_df['orientation_xy']*180/np.pi
+                edge_df['orientation_xz'] = edge_df['orientation_xz']*180/np.pi
+                edge_df['orientation_yz'] = edge_df['orientation_yz']*180/np.pi
 
 def _lvl_sum(edge_df, df, lvl):
     df_ = df
