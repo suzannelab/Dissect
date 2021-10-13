@@ -118,9 +118,9 @@ class Skeleton():
             self.critical_point.drop(labels='id', axis=1, inplace=True)
             self.filament.drop(labels='id', axis=1, inplace=True)
 
+
     def create_binary_image(self):
         """ Create a binary image from skeleton
-
         Returns
         -------
         binary_image: np.array, background set to 0 and foreground set to 1

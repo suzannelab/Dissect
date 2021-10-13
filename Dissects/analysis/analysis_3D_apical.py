@@ -366,3 +366,27 @@ def enlarge_face_plane(image,
             img_plane[int(poly_points.z), int(poly_points.y), int(x_)] = 1
 
     return img_plane
+
+def assign_length(df_junc, edge_df) :
+    l_mic=[]
+
+
+    for i in range(len(edge_df)) : 
+        srce_xyz = (vert_df.loc[edge_df.loc[i].srce].x_pix,
+                vert_df.loc[edge_df.loc[i].srce].y_pix,
+                vert_df.loc[edge_df.loc[i].srce].z_pix)
+    
+        trgt_xyz = (vert_df.loc[edge_df.loc[i].trgt].x_pix,
+                vert_df.loc[edge_df.loc[i].trgt].y_pix,
+                vert_df.loc[edge_df.loc[i].trgt].z_pix)
+        junc_i1 = np.array([srce_xyz, trgt_xyz])
+        junc_i2 = np.array([trgt_xyz, srce_xyz])
+    
+        for ind in range(len(df_junc)) : 
+            junc_ind1 =np.array([df_junc.s_xyz[ind], df_junc.t_xyz[ind]])
+            junc_ind2 =np.array([df_junc.t_xyz[ind],df_junc.s_xyz[ind]])
+            if np.all(junc_i1 == junc_ind1) or np.all(junc_i1 == junc_ind2) or np.all(junc_i2 == junc_ind2) or np.all(junc_i2 == junc_ind1) :
+                l_mic.append(df_junc['length(µm)'][ind])
+
+    
+    edge_df['Length(µm)']=l_mic

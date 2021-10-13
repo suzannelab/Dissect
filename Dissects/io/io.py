@@ -171,7 +171,7 @@ def load_NDskl(filename):
                              'fillId': [cp_filament_info[i]['fillId']
                                                  for i in range(len(cp_filament_info))]})
 
-    return cp_df, fil_df, fil_points, specs, cp_filinfo_df
+    return cp_df, fil_df, fil_points, cp_filinfo_df, specs
 
 def load_image(path):
     """ Import a stack of images .TIF in a np.array.

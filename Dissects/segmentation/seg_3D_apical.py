@@ -382,7 +382,7 @@ def skel_vertices(skel):
     df_skel_vertices = skel.critical_point[skel.critical_point.nfil>=3]
     return df_skel_vertices
 
-def junctions_length(skel, clean=True):
+def junctions_length(skel, X_SIZE, Z_SIZE, clean=True):
     """
     Measure the length of the junctions.
     Follow each junction from one vertex to the next one, defines it as an edge and calcul its length.
@@ -397,11 +397,11 @@ def junctions_length(skel, clean=True):
     df_junc : Dataframe
     """
     
-    skel.critical_point['z']=skel.critical_point['z']*Z_SIZE/X_SIZE
-    skel.point['z']=skel.point['z']*Z_SIZE/X_SIZE
+    skel.critical_point['z'] = skel.critical_point['z']*Z_SIZE/X_SIZE
+    skel.point['z'] = skel.point['z']*Z_SIZE/X_SIZE
     
     if not clean:
-        #skel.critical_point['id_original'] = skel.critical_point.index
+        skel.critical_point['id_original'] = skel.critical_point.index
         skel.filament['id_original'] = skel.filament.index
 
     ## now try and do it for each node
@@ -434,6 +434,7 @@ def junctions_length(skel, clean=True):
    
 
         for inum, fi, ci in zip(range(len(idx_fils)),idx_fils,idx_destcrits):
+            dead_end = False
             if not np.isin(fi,end_fil):
                 list_fils = [fi]
                 list_cp = [idx_depart,ci]
@@ -446,6 +447,14 @@ def junctions_length(skel, clean=True):
                 if np.sum(np.isin(np.array(dest_cps['destcritid']),ior_previous)) > 1:
                     print('PROBLEM')
                     break
+                if (len(np.isin(np.array(dest_cps['destcritid']),ior_previous)) == 1 and 
+                    np.isin(np.array(dest_cps['destcritid']),ior_previous) == [True]):
+                    #print('dead end outside while')
+                    lf.append(list_fils)
+                    end_fil.append(list_fils[-1])
+                    lcp.append(list_cp)
+                    #dead_end = True
+                    continue   
                 else:    
                     next_cp = np.array(dest_cps['destcritid'])[~np.isin(np.array(dest_cps['destcritid']),ior_previous)][0]
                     idx_nextcp = np.where(np.isin(skel.critical_point['id_original'],
@@ -461,7 +470,7 @@ def junctions_length(skel, clean=True):
                                      skel.critical_point.id_original)
                     previous_cp_filId = list(
                         np.array(skel.cp_fil_info.iloc[ior_previous]['fillId'])[mask_clean])
-           
+
                     idx_fili = np.array([np.where(skel.filament['id_original'] ==
                                 skel.cp_fil_info.iloc[ior_previous]['fillId'][i])[0][0]
                           for i in range(len(skel.cp_fil_info.iloc[ior_previous]['fillId']))])
@@ -476,6 +485,14 @@ def junctions_length(skel, clean=True):
                     if np.sum(np.isin(np.array(dest_cps['destcritid']),ior_previous)) > 1:
                         print('PROBLEM')
                         break
+                    if (len(np.isin(np.array(dest_cps['destcritid']),ior_previous)) == 1 and 
+                        np.isin(np.array(dest_cps['destcritid']),ior_previous) == [True]):
+                        lf.append(list_fils)
+                        end_fil.append(list_fils[-1])
+                        lcp.append(list_cp)
+                        #print('dead end inside while')
+                        dead_end = True
+                        break
                     else:    
                         next_cp = np.array(dest_cps['destcritid'])[
                             ~np.isin(np.array(dest_cps['destcritid']),ior_previous)][0]
@@ -483,16 +500,16 @@ def junctions_length(skel, clean=True):
                                           next_cp))[0][0]
 
                     iwhile+=1
-                lf.append(list_fils)
-                end_fil.append(list_fils[-1])
-                lcp.append(list_cp)
-               
-    float_vert_df = skel.critical_point.iloc[idx_nflsup3][['x','y','z']]
-
-       
+                if not dead_end:
+                    lf.append(list_fils)
+                    end_fil.append(list_fils[-1])
+                    lcp.append(list_cp) 
+                      
     Junctions  = np.empty(len(lf),dtype='object')
     junc_points = np.empty(len(lf),dtype='object')
     junc_cp_ends = np.empty(len(lf),dtype='object')
+    junc_cp_ends_srce = np.empty(len(lf),dtype='object')
+    junc_cp_ends_trgt = np.empty(len(lf),dtype='object')
     length = np.zeros(len(lf))
 
     for ijunc in range(len(lf)):
@@ -535,13 +552,18 @@ def junctions_length(skel, clean=True):
                 ppoint = ppoint1
             ifil += 1  
             junc_points[ijunc] = np.concatenate(Junctions[ijunc])
-            junc_cp_ends[ijunc] = [np.where(idx_nflsup3 == lcp[ijunc][0])[0][0],
-                                   np.where(idx_nflsup3 == lcp[ijunc][-1])[0][0]]
+            
+            junc_cp_ends[ijunc] = [lcp[ijunc][0],lcp[ijunc][-1]]
+            junc_cp_ends_srce[ijunc] = junc_cp_ends[ijunc][0]
+            junc_cp_ends_trgt[ijunc] = junc_cp_ends[ijunc][1]
+            #junc_cp_ends[ijunc] = [float_vert_df.index[np.where(idx_nflsup3 == lcp[ijunc][0])[0][0]],
+            #                       float_vert_df.index[np.where(idx_nflsup3 == lcp[ijunc][-1])[0][0]]]
             length[ijunc] = np.sum(np.sqrt(np.sum(
                 ((np.roll(junc_points[ijunc], 1, axis=0) -
                   junc_points[ijunc])[1:])**2, axis=1)))
        
-    df_junc = pd.DataFrame(data={'vertices': junc_cp_ends,
+    df_junc = pd.DataFrame(data={'srce' : junc_cp_ends_srce,
+                                 'trgt' :junc_cp_ends_trgt,
                              'points_coords': junc_points,
                              'points_coords_binaire': [junc_points[ijunc].astype(int)
                                                 for ijunc in range(len(junc_points))],
@@ -549,6 +571,9 @@ def junctions_length(skel, clean=True):
                              'length(µm)': length*X_SIZE
                                 
                                 })
+    
 
+    skel.critical_point['z']=skel.critical_point['z']*X_SIZE/Z_SIZE
+    skel.point['z']=skel.point['z']*X_SIZE/Z_SIZE
        
-    return float_vert_df, df_junc
+    return df_junc
