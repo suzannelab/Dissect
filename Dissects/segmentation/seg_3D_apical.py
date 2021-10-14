@@ -382,7 +382,7 @@ def skel_vertices(skel):
     df_skel_vertices = skel.critical_point[skel.critical_point.nfil>=3]
     return df_skel_vertices
 
-def junctions_length(skel, X_SIZE, Z_SIZE, clean=True):
+def junctions_length(skel, pixel_size, clean=True):
     """
     Measure the length of the junctions.
     Follow each junction from one vertex to the next one, defines it as an edge and calcul its length.
@@ -397,8 +397,8 @@ def junctions_length(skel, X_SIZE, Z_SIZE, clean=True):
     df_junc : Dataframe
     """
     
-    skel.critical_point['z'] = skel.critical_point['z']*Z_SIZE/X_SIZE
-    skel.point['z'] = skel.point['z']*Z_SIZE/X_SIZE
+    skel.critical_point['z'] = skel.critical_point['z']*pixel_size['Z_SIZE']/pixel_size['X_SIZE']
+    skel.point['z'] = skel.point['z']*pixel_size['Z_SIZE']/pixel_size['X_SIZE']
     
     if not clean:
         skel.critical_point['id_original'] = skel.critical_point.index
@@ -573,8 +573,8 @@ def junctions_length(skel, X_SIZE, Z_SIZE, clean=True):
                                 })
     
 
-    skel.critical_point['z']=skel.critical_point['z']*X_SIZE/Z_SIZE
-    skel.point['z']=skel.point['z']*X_SIZE/Z_SIZE
+    skel.critical_point['z']=skel.critical_point['z']*pixel_size['X_SIZE']/pixel_size['Z_SIZE']
+    skel.point['z']=skel.point['z']*pixel_size['X_SIZE']/pixel_size['Z_SIZE']
        
     return df_junc
 
