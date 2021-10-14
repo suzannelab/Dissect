@@ -689,7 +689,7 @@ def junctions_2(skel, clean=True):
     Junctions  = np.empty(len(lf),dtype='object')
     junc_points = np.empty(len(lf),dtype='object')
     junc_cp_ends = np.empty(len(lf),dtype='object')
-    lenght = np.zeros(len(lf))
+    length = np.zeros(len(lf))
 
     for ijunc in range(len(lf)):
         Junctions[ijunc] = []
@@ -733,7 +733,7 @@ def junctions_2(skel, clean=True):
             junc_points[ijunc] = np.concatenate(Junctions[ijunc])
             junc_cp_ends[ijunc] = [np.where(idx_nflsup3 == lcp[ijunc][0])[0][0],
                                    np.where(idx_nflsup3 == lcp[ijunc][-1])[0][0]]
-            lenght[ijunc] = np.sum(np.sqrt(np.sum(
+            length[ijunc] = np.sum(np.sqrt(np.sum(
                 ((np.roll(junc_points[ijunc], 1, axis=0) -
                   junc_points[ijunc])[1:])**2, axis=1)))
        
@@ -741,7 +741,7 @@ def junctions_2(skel, clean=True):
                              'points_coords': junc_points,
                              'points_coords_binaire': [junc_points[ijunc].astype(int)
                                                 for ijunc in range(len(junc_points))],
-                             'lenght': lenght})
+                             'length': length})
 
        
     return vert_df, edge_df, df_junc

@@ -389,4 +389,4 @@ def assign_length(df_junc, edge_df) :
                 l_mic.append(df_junc['length(µm)'][ind])
 
     
-    edge_df['Length(µm)']=l_mic
+    edge_df['length']=l_mic

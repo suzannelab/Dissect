@@ -567,8 +567,8 @@ def junctions_length(skel, X_SIZE, Z_SIZE, clean=True):
                              'points_coords': junc_points,
                              'points_coords_binaire': [junc_points[ijunc].astype(int)
                                                 for ijunc in range(len(junc_points))],
-                             'length(AU)': length,
-                             'length(µm)': length*X_SIZE
+                             'length_AU': length,
+                             'length_µm': length*X_SIZE
                                 
                                 })
     
@@ -577,3 +577,27 @@ def junctions_length(skel, X_SIZE, Z_SIZE, clean=True):
     skel.point['z']=skel.point['z']*X_SIZE/Z_SIZE
        
     return df_junc
+
+def assign_length(df_junc, edge_df) :
+    l_mic=[]
+
+
+    for i in range(len(edge_df)) : 
+        srce_xyz = (vert_df.loc[edge_df.loc[i].srce].x_pix,
+                vert_df.loc[edge_df.loc[i].srce].y_pix,
+                vert_df.loc[edge_df.loc[i].srce].z_pix)
+    
+        trgt_xyz = (vert_df.loc[edge_df.loc[i].trgt].x_pix,
+                vert_df.loc[edge_df.loc[i].trgt].y_pix,
+                vert_df.loc[edge_df.loc[i].trgt].z_pix)
+        junc_i1 = np.array([srce_xyz, trgt_xyz])
+        junc_i2 = np.array([trgt_xyz, srce_xyz])
+    
+        for ind in range(len(df_junc)) : 
+            junc_ind1 =np.array([df_junc.s_xyz[ind], df_junc.t_xyz[ind]])
+            junc_ind2 =np.array([df_junc.t_xyz[ind],df_junc.s_xyz[ind]])
+            if np.all(junc_i1 == junc_ind1) or np.all(junc_i1 == junc_ind2) or np.all(junc_i2 == junc_ind2) or np.all(junc_i2 == junc_ind1) :
+                l_mic.append(df_junc['length_um'][ind])
+
+    
+    edge_df['length']=l_mic
