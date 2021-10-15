@@ -568,7 +568,7 @@ def junctions_length(skel, pixel_size, clean=True):
                              'points_coords_binaire': [junc_points[ijunc].astype(int)
                                                 for ijunc in range(len(junc_points))],
                              'length_AU': length,
-                             'length_µm': length*X_SIZE
+                             'length_µm': length*pixel_size['X_SIZE']
                                 
                                 })
     
