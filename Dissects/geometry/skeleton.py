@@ -6,7 +6,7 @@ import warnings
 
 class Skeleton():
 
-    def __init__(self, cp_df, fil_df, point_df, specs={}):
+    def __init__(self, cp_df, fil_df, point_df, cp_filinfo_df, specs={}):
         """ Create an skeleton object
 
         Parameters
@@ -19,6 +19,7 @@ class Skeleton():
         self.critical_point = cp_df
         self.filament = fil_df
         self.point = point_df
+        self.cp_fil_info = cp_filinfo_df
         self.specs = specs
 
         warnings.warn("As pixel can be half pixel from DisPerSE output, \
@@ -61,6 +62,7 @@ class Skeleton():
 
         warnings.warn(
             "specs dictionnary is not updated, ncrit value is not updated.")
+
 
     def remove_free_filament(self):
         """ Remove filament which have one free side.
@@ -116,9 +118,9 @@ class Skeleton():
             self.critical_point.drop(labels='id', axis=1, inplace=True)
             self.filament.drop(labels='id', axis=1, inplace=True)
 
+
     def create_binary_image(self):
         """ Create a binary image from skeleton
-
         Returns
         -------
         binary_image: np.array, background set to 0 and foreground set to 1

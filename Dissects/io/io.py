@@ -165,9 +165,13 @@ def load_NDskl(filename):
             fil_supp = pd.DataFrame.from_dict(datas, orient='index')
         # merge cp_df and cp_supp
         fil_points = pd.concat([fil_points, fil_supp], axis=1, sort=False)
+        
+    cp_filinfo_df = pd.DataFrame(data={'destcritid': [cp_filament_info[i]['destcritid']
+                                                 for i in range(len(cp_filament_info))],
+                             'fillId': [cp_filament_info[i]['fillId']
+                                                 for i in range(len(cp_filament_info))]})
 
-    return cp_df, fil_df, fil_points, specs, cp_filament_info
-
+    return cp_df, fil_df, fil_points, cp_filinfo_df, specs
 
 def load_image(path):
     """ Import a stack of images .TIF in a np.array.
@@ -204,12 +208,13 @@ def load_image(path):
     return image, metadata
 
 
-def load_skeleton(filestore, data_names=['critical_point', 'filament', 'point']):
+def load_skeleton(filestore, data_names=['critical_point', 'filament', 'point',  'cp_fil_info']):
     if not os.path.isfile(filestore):
         raise FileNotFoundError("file %s not found" % filestore)
     with pd.HDFStore(filestore) as store:
         data = {name: store[name] for name in data_names if name in store}
     return data
+
 
 
 def save_skeleton(skeleton, filename, path=None):
@@ -228,7 +233,7 @@ def save_skeleton(skeleton, filename, path=None):
         filename = filename + '.hf5'
     if path is None:
         warnings.warn("Fits file will be saved in the working directory. \
-                       Or maybe path is specify in filename...")
+                       Or maybe path is specified in filename...")
         path = os.getcwd()
 
     filestore = os.path.join(path, filename)
@@ -237,7 +242,7 @@ def save_skeleton(skeleton, filename, path=None):
         store.put('critical_point', skeleton.critical_point)
         store.put('filament', skeleton.filament)
         store.put('point', skeleton.point)
-
+        store.put('cp_fil_info', skeleton.cp_fil_info)
 
 def save_fits(image, filename, path=None):
     """ Convert and save an np.array image into fits file to run Disperse.
