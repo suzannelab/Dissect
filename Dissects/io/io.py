@@ -266,7 +266,7 @@ def save_fits(image, filename, path=None):
     logging.info('Saved file: {filename} into {path} directory')
 
 
-def save_image(image_array, filename, path=None, **kwargs):
+def save_image(image_array, filename, path=None, type_='uint16', **kwargs):
     """ Save np.array image into tif file.
 
     Parameters
@@ -299,14 +299,19 @@ def save_image(image_array, filename, path=None, **kwargs):
             pass
 
     tifffile.imwrite(filepath,
-                     image_array.astype('float32'),
+                     image_array.astype(type_),
                      imagej=True,
                      resolution=(1/x_size, 1/y_size),
                      metadata={'spacing': z_size,
                                'unit': 'um',
-                               'axes': 'ZYX'})
+                               'axes': 'ZYX',
+                               'hyperstack':True,
+                               'channels':1,
+                               'slices':image_array.shape[0]})
 
     logging.info('Saved file: {filename} into {path} directory')
+
+
 
 def save_image_analyse_face(enlarge_face,
                            face_df, 
@@ -335,7 +340,7 @@ def save_image_analyse_face(enlarge_face,
         
     
     tifffile.imwrite(os.path.join(directory, IMAGE_NAME[:-4] +'_'+ column +'.tif'),
-                     saving_image.astype('float32'),
+                     saving_image.astype('uint16'),
                      imagej=True,
                      resolution=(1/X_SIZE, 1/Y_SIZE),
                      metadata={'spacing': Z_SIZE,
