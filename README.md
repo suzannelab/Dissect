@@ -28,6 +28,7 @@ In the repository notebook-DEMO, there is several notebook which explain how to 
 * Notebook
 * exifread
 * opencv
+* tifffile >= 2021.8.3
 
 ## Install
 See [INSTALL.md](install.md) for a step by step install. 

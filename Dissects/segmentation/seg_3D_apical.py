@@ -43,7 +43,7 @@ def generate_segmentation(skeleton,
 
     vert_df = find_vertex(skeleton)
     vert_df, edge_df = find_edge(skeleton, vert_df, half_edge=True)
-    face_df, edge_df = find_cell(edge_df)
+    face_df, edge_df = find_cell(edge_df, vert_df)
 
     points_df = find_points(edge_df)
 
@@ -282,8 +282,33 @@ def generate_half_edge(edge_df, vert_df):
 
     return new_edge_df
 
+def check_poly_is_valid (vert_df, vert_order):
+    """
+    Verifie si le polygon s'auto intersecte ou pas. 
+    """
+    from shapely.geometry import Polygon 
 
-def find_cell(edge_df):
+    center = vert_df.loc[vert_order][list('xyz')].mean()
+    rel_srce_pos = np.array([(vert_df.loc[vert_order,'x']-center.x).to_numpy(),
+                    (vert_df.loc[vert_order,'y']-center.y).to_numpy(),
+                    (vert_df.loc[vert_order,'z']-center.z).to_numpy()])
+
+    rel_srce_pos = pd.DataFrame(rel_srce_pos.T, columns=list("xyz"))
+
+    _, _, rotation = np.linalg.svd(
+            rel_srce_pos.astype(float), full_matrices=False
+        )
+
+    rot_pos = np.dot(rel_srce_pos, rotation.T)
+    np.arctan2(rot_pos[:, 1], rot_pos[:, 0])
+
+    coords = []
+    for i in range(len(rot_pos)):
+        coords.append((rot_pos[i][0], rot_pos[i][1]))
+    poly = Polygon(coords)
+    return poly.is_valid
+
+def find_cell(edge_df, vert_df):
     """
     Find face with graph theory
 
@@ -309,10 +334,11 @@ def find_cell(edge_df):
     while (len(all_faces) > 0) or (find == False):
         find = False
         for i in range(len(all_faces)):
+            ii = np.random.randint(0, len(all_faces))
             for j in range(len(order_faces)):
-                if len(set(order_faces[j]).intersection(all_faces[i])) >=2 :
-                    order_faces.append(all_faces[i])
-                    all_faces.remove(all_faces[i])
+                if len(set(order_faces[j]).intersection(all_faces[ii])) >=2 :
+                    order_faces.append(all_faces[ii])
+                    all_faces.remove(all_faces[ii])
                     find = True
                     break
             if find == True:
@@ -336,33 +362,35 @@ def find_cell(edge_df):
                                     (edges.trgt != vert_order[-2])]['trgt'].to_numpy()[0])
             if vert_order[0] == vert_order[-1]:
                 break
-
-        edge = []
-        for i in range(len(vert_order)-1):
-            edge.append(edge_df[(edge_df.srce == vert_order[i]) & (
-                edge_df.trgt == vert_order[i+1])].index.to_numpy()[0])
-
-        if len(np.unique(edge_df.loc[edge]['face'].to_numpy())) == 1:
-            edge_df.loc[edge, 'face'] = cpt_face
-
-        else:
-            vert_order = np.flip(vert_order)
+        if check_poly_is_valid(vert_df, vert_order):
             edge = []
             for i in range(len(vert_order)-1):
                 edge.append(edge_df[(edge_df.srce == vert_order[i]) & (
                     edge_df.trgt == vert_order[i+1])].index.to_numpy()[0])
+
             if len(np.unique(edge_df.loc[edge]['face'].to_numpy())) == 1:
                 edge_df.loc[edge, 'face'] = cpt_face
+
             else:
-                logger.warning("there is a problem")
-                # print(f)
-                # print(tmp)
-                # print(tmp_e)
-                # print((edge_df.loc[edge]['face'].to_numpy()))
-                # print(edge)
+                vert_order = np.flip(vert_order)
+                edge = []
+                for i in range(len(vert_order)-1):
+                    edge.append(edge_df[(edge_df.srce == vert_order[i]) & (
+                        edge_df.trgt == vert_order[i+1])].index.to_numpy()[0])
+                if len(np.unique(edge_df.loc[edge]['face'].to_numpy())) == 1:
+                    edge_df.loc[edge, 'face'] = cpt_face
+                else:
+                    logger.warning("there is a problem")
+                    # print(f)
+                    # print(tmp)
+                    # print(tmp_e)
+                    # print((edge_df.loc[edge]['face'].to_numpy()))
+                    # print(edge)
 
-        cpt_face += 1
-
+            cpt_face += 1
+        else : 
+            logger.warning("Self intersect polygon")
+            
     edge_df.drop(edge_df[edge_df['face']==-1].index, inplace=True)
     edge_df.reset_index(drop=True, inplace=True)
     face_df = pd.DataFrame(index=np.sort(edge_df.face.unique()))

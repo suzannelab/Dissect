@@ -66,7 +66,8 @@ def morphology_analysis(face_df,
                         perimeter=True,
                         nb_neighbor=True,
                         aniso=True,
-                        j_orientation=True
+                        j_orientation=True,
+                        angle_degree=False
                         ):
 
     update_geom(face_df, edge_df, vert_df)
@@ -150,11 +151,20 @@ def morphology_analysis(face_df,
             points = points_df[points_df.edge == e][['x', 'y', 'z']].to_numpy(
                             ).astype("float") - edge_df.loc[e][['sx','sy','sz']].to_numpy().astype("float")
 
-            # Measure cell anisotropie
-            u, s, vh = np.linalg.svd(points)
+            # Measure edge orientation according to xy plan
+            edge_df['orientation_xy'] = np.arctan2(edge_df.ty-edge_df.sy,
+                                                   edge_df.tx-edge_df.sx)
 
-            ocoords = ["orientation" + u for u in list('xyz')]
-            edge_df.loc[e, ocoords] = vh[0, :]
+            edge_df['orientation_xz'] = np.arctan2(edge_df.tz-edge_df.sz,
+                                                   edge_df.tx-edge_df.sx)
+
+            edge_df['orientation_yz'] = np.arctan2(edge_df.tz-edge_df.sz,
+                                                   edge_df.ty-edge_df.sy)
+
+            if angle_degree:
+                edge_df['orientation_xy'] = edge_df['orientation_xy']*180/np.pi
+                edge_df['orientation_xz'] = edge_df['orientation_xz']*180/np.pi
+                edge_df['orientation_yz'] = edge_df['orientation_yz']*180/np.pi
 
 def _lvl_sum(edge_df, df, lvl):
     df_ = df
@@ -216,7 +226,7 @@ def face_intensity(image,
 
     Return
     ------
-    all_enlarge_face: np.array, of all enlarge faces
+    all_enlarge_face_id: np.array, of all enlarge faces
     """
     image_no_junction = np.zeros(image.shape)
     image_no_junction[points_df.z_pix.astype(int), points_df.y_pix.astype(int), points_df.x_pix.astype(int)] = 1
@@ -227,7 +237,7 @@ def face_intensity(image,
     image_no_junction = image * image_no_junction
     
     
-    all_enlarge_face = np.zeros(image.shape)
+    all_enlarge_face_id = np.zeros(image.shape)
     update_geom(face_df, edge_df, vert_df)
     compute_normal(face_df, edge_df, vert_df)
 
@@ -241,12 +251,14 @@ def face_intensity(image,
                                       f,
                                       thickness,
                                       pixel_size)
-        
+        z, y, x = np.where(img_face>0)
+        all_enlarge_face_id[z,y,x] = f+1
+
+
         intensity_output = image_no_junction*img_face
         face_df.loc[f, new_column] = np.mean(
             intensity_output[np.where(intensity_output > 0)])
-        all_enlarge_face = all_enlarge_face+img_face
-    return all_enlarge_face
+    return all_enlarge_face_id
 
 
 def enlarge_face_plane(image,
