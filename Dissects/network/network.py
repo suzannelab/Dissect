@@ -21,11 +21,9 @@ def create_network(df_junc, skel):
     link_df : Dataframe
     G : Graph (class of networkX)
     """
-    
     #creation of node_df from df_junc
     ind_list = np.unique(np.concatenate((df_junc.srce, df_junc.trgt), axis=0)).tolist()
     node_df = skel.critical_point.iloc[ind_list]
-    
     
     #creation of link_df from df_junc
     srce=df_junc['srce'].tolist()
@@ -43,17 +41,13 @@ def create_network(df_junc, skel):
                             source='srce',
                             target='trgt',
                             create_using=nx.Graph())
-
     dic_pos={}
-    for i, row in node_df.iterrows() :
-        dic_pos[i] = np.array([ node_df.x[i], node_df.y[i], node_df.z[i] ])
+    dic_pos = node_df[list("xyz")].T.to_dict('list')
 
-     
     return node_df, link_df, G
 
 
-
-def calculate_centrality(node_df, G, measure, measure_name):
+def calculate_centrality(node_df, G, measure = nx.betweenness_centrality(G), measure_name = 'degree'):
 
     """
     Add centrality column to node_df
@@ -62,13 +56,12 @@ def calculate_centrality(node_df, G, measure, measure_name):
     ----------
     node_df: dataframe from create_network
     G: Graph from create_create_network
-    measure: centrality measure (degree, betweenness, closeness). Write: nx.degree_centrality(G)
+    measure: centrality measure. For degree/betweenness/closeness write nx.degree_centrality(G)/nx.betweenness_centrality(G)/nx.closeness_centrality(G)
     measure_name: string. Name of the new colomn inthe dataframe
     """
     node_df[measure_name] = np.nan
     for k, v in measure.items():
         node_df[measure_name][k]=v
-    
 
 
 
@@ -148,7 +141,7 @@ def global_network_property(df_junc, node_df):
 
     """
     
-    columns_name = ['Length', 'Nodes', 'End_nodes', 'Branches', 'Tortuosity']
+    columns_name = ['length', 'nodes', 'end_nodes', 'branches', 'tortuosity']
     init = np.zeros((1, len(columns_name)))
     global_network_df = pd.DataFrame(data=init, columns=columns_name)
     
