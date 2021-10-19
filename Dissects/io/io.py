@@ -367,3 +367,30 @@ def save_vtp(skeleton, filename, path=None):
     v.write()
 
     logging.info('Saved file: {filepath}')
+
+def save_tif(image_array, filename, path, pixel_size):
+        
+    if path is None:
+        warnings.warn("tif file will be saved in the working directory.")
+        path = os.getcwd()
+
+    filepath = os.path.join(path, filename)
+
+    x_size = pixel_size['X_SIZE']
+    y_size = pixel_size['Y_SIZE']
+    try:
+        z_size = pixel_size['Z_SIZE']
+    except:
+        pass
+    
+    
+    tiff = np.zeros((1, image_array.shape[0], 1, image_array.shape[1], image_array.shape[2]))
+    tiff[0,:,0,:,:] = image_array
+    tifffile.imwrite(path + filename,
+                     tiff.astype('float32'),
+                     imagej=True,
+                     resolution=(1/x_size, 1/y_size),
+                     metadata={'spacing': z_size,
+                               'unit': 'um',
+                               'axes': 'TZCYX'})
+
