@@ -1,8 +1,10 @@
 import warnings
 import numpy as np
 import scipy as sc
-from skimage.morphology import binary_dilation
+from skimage.morphology import binary_dilation, dilation
 import cv2
+from astropy.convolution import convolve, Tophat2DKernel
+from skimage import filters as filters
 
 
 def z_project(image, method='max', n=None, metadata=None):
@@ -46,7 +48,7 @@ def z_project(image, method='max', n=None, metadata=None):
     return projection
 
 
-def dilation(mask, width=2):
+def b_dilation(mask, width=2):
     """ Make a symetrical dilation in all direction
 
     Parameters
@@ -71,12 +73,7 @@ def thinning(mask, width=2):
     kernel = np.ones((width,width),np.uint8)
     erosion = cv2.erode(mask.astype(np.uint8), kernel, iterations = 1)
 
-    return mask - erosion
-
-
-from astropy.convolution import convolve, Tophat2DKernel
-from skimage import filters as filters
-
+    return mask-erosion
 
 def otsufilter(image, nbins=65536):
     """
@@ -98,7 +95,62 @@ def otsufilter(image, nbins=65536):
 
 
 def normalise_im(im, kernelsize):
-    """Normalise the image by the backgroung."""
+    """Normalise the image by the background."""
     norm_im = im / \
         np.mean(im[np.where(~otsufilter(convolve(im, Tophat2DKernel(kernelsize))))])
     return norm_im
+
+
+def apical_mask(img, face_df, edge_df, vert_df, points_df, pixel_size, it, dil):
+    apical = np.zeros(img.shape)
+
+    for i in range(len(face_df)) : 
+        cell_i = enlarge_face_plane(img,
+                       face_df,
+                       edge_df,
+                       vert_df,
+                       points_df,
+                       i,
+                       dil,
+                       {"X_SIZE":X_SIZE, 
+                        "Y_SIZE":Y_SIZE, 
+                        "Z_SIZE":Z_SIZE})
+        
+        apical[np.where(cell_i==1)]=1
+        fill_apical =  ndimage.binary_closing(apical, iterations = it).astype(np.int)
+    return fill_apical
+
+def rectangle_mask(img, 
+                   x_min, x_max, 
+                   y_min, y_max, 
+                   z_min, z_max):
+    rectangle_mask = np.zeros(img.shape)
+    rectangle_mask[:,:,:]=1
+    rectangle_mask[z_min:z_max, y_min:y_max,  x_min:x_max]=0
+    return rectangle_mask
+
+def skel_array(self):
+    """ Create a np array with field value from skeleton
+    Returns
+    -------
+    skel_array: np.array
+    """
+    skel_array = np.zeros((self.specs['bbox_delta']).astype(int))
+    for i, coord in self.point[list('xyz')[:self.specs['ndims']]].iterrows():
+        if self.specs['ndims'] == 2:
+            skel_array[coord.astype(int)[0], coord.astype(int)[
+                1]] = self.point.field_value[i]
+        else:
+            skel_array[coord.astype(int)[0], coord.astype(int)[
+                1], coord.astype(int)[2]] = self.point.field_value[i]
+    return skel_array.T
+
+def greyscale_dilation(image, width=2):
+    if width == 0:
+        return image
+    selem = np.ones(np.repeat(2 * width + 1, len(image.shape)))
+    return dilation(image, selem=selem)
+
+
+
+
