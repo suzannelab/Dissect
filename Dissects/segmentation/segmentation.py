@@ -1,5 +1,5 @@
 import numpy as np
-import pandas as ipv_draw
+import pandas as pd
 
 from ..geometry import Skeleton
 
