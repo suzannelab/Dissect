@@ -324,6 +324,207 @@ class Segmentation2D(Segmentation):
         return df_vertices
 
 
+    def junction(self, pixel_size, clean=True):
+        """
+        Measure the length of the junctions.
+        Follow each junction from one vertex to the next one, defines it as an edge and calcul its length.
+
+        Parameters
+        ----------
+        skel : skeleton object, breakdowned, smoothed and cleaned
+
+        Return
+        ------
+        vert_df : DataFrame
+        df_junc : Dataframe
+        """
+
+        
+        if not clean:
+            self.skeleton.critical_point['id_original'] = self.skeleton.critical_point.index
+            self.skeleton.filament['id_original'] = self.skeleton.filament.index
+
+        ## now try and do it for each node
+        idx_nflsup3 = np.where(self.skeleton.critical_point.nfil >= 3)[0]
+
+        lf = []
+        end_fil = []
+        lcp = []
+        il = 0
+        for idx_depart in idx_nflsup3:
+            
+            i_original_depart = self.skeleton.critical_point.iloc[idx_depart]['id_original']
+       
+            mask_clean = np.isin(self.skeleton.cp_fil_info.iloc[i_original_depart]['destcritid'],
+                                     self.skeleton.critical_point.id_original)
+            cp_filId = list(np.array(self.skeleton.cp_fil_info.iloc[i_original_depart]['fillId'])[mask_clean])
+            #filament indices
+            idx_fils = [np.where(self.skeleton.filament['id_original'] ==
+                            cp_filId[i])[0][0]
+                              for i in range(len(cp_filId))]      
+
+            #destination cp indices
+            cp_destId = list(np.array(self.skeleton.cp_fil_info.iloc[i_original_depart]['destcritid'])[mask_clean])
+
+            #destination cp indices
+            idx_destcrits = [np.where(self.skeleton.critical_point['id_original'] ==
+                     cp_destId[i])[0][0]
+                         for i in range(len(cp_destId))]
+       
+       
+
+            for inum, fi, ci in zip(range(len(idx_fils)),idx_fils,idx_destcrits):
+                dead_end = False
+                if not np.isin(fi,end_fil):
+                    list_fils = [fi]
+                    list_cp = [idx_depart,ci]
+                    idx_thiscp = ci
+                    ior_previous = i_original_depart  
+                    dest_cps = self.skeleton.cp_fil_info.iloc[self.skeleton.critical_point.iloc[idx_thiscp]['id_original']]
+                    mask_clean = np.isin(dest_cps['destcritid'],self.skeleton.critical_point.id_original)
+                    dest_cps['destcritid']  = list(np.array(dest_cps['destcritid'])[mask_clean])
+                    dest_cps['fillId'] = list(np.array(dest_cps['fillId'])[mask_clean])
+                    if np.sum(np.isin(np.array(dest_cps['destcritid']),ior_previous)) > 1:
+                        print('PROBLEM')
+                        break
+                    if (len(np.isin(np.array(dest_cps['destcritid']),ior_previous)) == 1 and 
+                        np.isin(np.array(dest_cps['destcritid']),ior_previous) == [True]):
+                        #print('dead end outside while')
+                        lf.append(list_fils)
+                        end_fil.append(list_fils[-1])
+                        lcp.append(list_cp)
+                        continue   
+                    else:    
+                        next_cp = np.array(dest_cps['destcritid'])[~np.isin(np.array(dest_cps['destcritid']),ior_previous)][0]
+                        idx_nextcp = np.where(np.isin(self.skeleton.critical_point['id_original'],
+                                              next_cp))[0][0]
+
+                    iwhile=0
+                    while self.skeleton.critical_point.iloc[idx_thiscp]['nfil'] < 3:
+                        ior_previous = self.skeleton.critical_point.iloc[idx_thiscp]['id_original']
+                        idx_thiscp = idx_nextcp
+                        ior_current = self.skeleton.critical_point.iloc[idx_nextcp]['id_original']
+
+                        mask_clean = np.isin(self.skeleton.cp_fil_info.iloc[ior_previous]['destcritid'],
+                                         self.skeleton.critical_point.id_original)
+                        previous_cp_filId = list(
+                            np.array(self.skeleton.cp_fil_info.iloc[ior_previous]['fillId'])[mask_clean])
+
+                        idx_fili = np.array([np.where(self.skeleton.filament['id_original'] ==
+                                    self.skeleton.cp_fil_info.iloc[ior_previous]['fillId'][i])[0][0]
+                              for i in range(len(self.skeleton.cp_fil_info.iloc[ior_previous]['fillId']))])
+                        next_fil  = idx_fili[~np.isin(idx_fili,np.array(list_fils))][0]
+                        list_fils.append(next_fil)
+                        list_cp.append(idx_nextcp)
+             
+                        dest_cps = self.skeleton.cp_fil_info.iloc[self.skeleton.critical_point.iloc[idx_nextcp]['id_original']]
+                        mask_clean = np.isin(dest_cps['destcritid'],self.skeleton.critical_point.id_original)
+                        dest_cps['destcritid']  = list(np.array(dest_cps['destcritid'])[mask_clean])
+                        dest_cps['fillId'] = list(np.array(dest_cps['fillId'])[mask_clean])
+                        if np.sum(np.isin(np.array(dest_cps['destcritid']),ior_previous)) > 1:
+                            print('PROBLEM')
+                            break
+                        if (len(np.isin(np.array(dest_cps['destcritid']),ior_previous)) == 1 and 
+                            np.isin(np.array(dest_cps['destcritid']),ior_previous) == [True]):
+                            lf.append(list_fils)
+                            end_fil.append(list_fils[-1])
+                            lcp.append(list_cp)
+                            #print('dead end inside while')
+                            dead_end = True
+                            break
+                        else:    
+                            next_cp = np.array(dest_cps['destcritid'])[
+                                ~np.isin(np.array(dest_cps['destcritid']),ior_previous)][0]
+                            idx_nextcp = np.where(np.isin(self.skeleton.critical_point['id_original'],
+                                              next_cp))[0][0]
+
+                        iwhile+=1
+                    if not dead_end:
+                        lf.append(list_fils)
+                        end_fil.append(list_fils[-1])
+                        lcp.append(list_cp) 
+        
+        vert_df = self.skeleton.critical_point.iloc[idx_nflsup3][['x','y']]
+        columns_name = ['srce','trgt']
+        nb_junctions = len(lf)
+        init = np.zeros((nb_junctions , len(columns_name)))
+        edge_df  = pd.DataFrame(data=init, columns=columns_name, dtype=np.int64)
+
+        for i in range(len(lf)):
+            edge_df.iloc[i]['srce'] = np.where(idx_nflsup3 == lcp[i][0])[0][0]
+            edge_df.iloc[i]['trgt'] = np.where(idx_nflsup3 == lcp[i][-1])[0][0]
+        
+        Junctions  = np.empty(len(lf),dtype='object')
+        junc_points = np.empty(len(lf),dtype='object')
+        junc_cp_ends = np.empty(len(lf),dtype='object')
+        junc_cp_ends_srce = np.empty(len(lf),dtype='object')
+        junc_cp_ends_trgt = np.empty(len(lf),dtype='object')
+        length = np.zeros(len(lf))
+
+        for ijunc in range(len(lf)):
+            Junctions[ijunc] = []
+            ifil = 0
+            for fil in lf[ijunc]:
+                if ifil == 0:
+                    ppoint = np.array(self.skeleton.point[self.skeleton.point['filament'] == fil][['x','y']])
+                    Junctions[ijunc].append(ppoint)
+                if ifil == 1:
+                    ppoint_before = ppoint
+                    ppoint = np.array(self.skeleton.point[self.skeleton.point['filament'] == fil][['x','y']])
+                    ppoint1 = ppoint
+                    if np.all(ppoint[-1] == ppoint_before[0]):
+                        ##flip 0+1
+                        Junctions[ijunc][0] = np.flip(Junctions[ijunc][0],axis=0)
+                        ppoint1 = np.flip(ppoint,axis=0)
+                        Junctions[ijunc].append(ppoint1)
+                    elif np.all(ppoint[0] == ppoint_before[0]):
+                        ##flip 0
+                        Junctions[ijunc][0] = np.flip(Junctions[ijunc][0],axis=0)
+                        Junctions[ijunc].append(ppoint)
+                    elif np.all(ppoint[-1] == ppoint_before[-1]):
+                        ##flip 1
+                        ppoint1 = np.flip(ppoint,axis=0)
+                        Junctions[ijunc].append(ppoint1)
+                    else:
+                        Junctions[ijunc].append(ppoint)
+                    ppoint = ppoint1
+                if ifil > 1:
+                    ppoint_before = ppoint
+                    ppoint = np.array(self.skeleton.point[self.skeleton.point['filament'] == fil][['x','y']])
+                    ppoint1 = ppoint
+                    if np.all(ppoint[-1] == ppoint_before[-1]):
+                        ##flip 1
+                        ppoint1 = np.flip(ppoint,axis=0)
+                        Junctions[ijunc].append(ppoint1)
+                    else:
+                        Junctions[ijunc].append(ppoint)
+                    ppoint = ppoint1
+                ifil += 1  
+                junc_points[ijunc] = np.concatenate(Junctions[ijunc])
+                
+                junc_cp_ends[ijunc] = [lcp[ijunc][0],lcp[ijunc][-1]]
+                junc_cp_ends_srce[ijunc] = junc_cp_ends[ijunc][0]
+                junc_cp_ends_trgt[ijunc] = junc_cp_ends[ijunc][1]
+                #junc_cp_ends[ijunc] = [float_vert_df.index[np.where(idx_nflsup3 == lcp[ijunc][0])[0][0]],
+                #                       float_vert_df.index[np.where(idx_nflsup3 == lcp[ijunc][-1])[0][0]]]
+                length[ijunc] = np.sum(np.sqrt(np.sum(
+                    ((np.roll(junc_points[ijunc], 1, axis=0) -
+                      junc_points[ijunc])[1:])**2, axis=1)))
+           
+        df_junc = pd.DataFrame(data={'srce' : junc_cp_ends_srce,
+                                     'trgt' :junc_cp_ends_trgt,
+                                 'points_coords': junc_points,
+                                 'points_coords_binaire': [junc_points[ijunc].astype(int)
+                                                    for ijunc in range(len(junc_points))],
+                                 'length(AU)': length,
+                                 'length(µm)': length*pixel_size['X_SIZE']
+                                    
+                                    })
+        
+
+        self.vert_df = vert_df.copy(deep=True)
+        self.edge_df = df_junc.copy(deep=True)
+           
 
 
 
@@ -415,130 +616,6 @@ def junction_around_cell(mask, seg, cell):
 
 
 
-
-
-
-
-
-
-
-def junctions(mask, df_vertices, max_area):
-
-    df_junctions = pd.DataFrame(columns=['Cell1','Cell2','srce', 'trgt',
-                                       'angle', 'length'])
-
-
-    seg= segmentation(mask, size_auto_remove=False, min_area=2, max_area=10000, boundary_auto_remove=True)
-    vert_df, vert_df_int = skel_vertices(skel)
-    list_vertices1 = vert_df_int.values.tolist()
-    list_vertices1=np.array(list_vertices1).T
-    list_vertices1=tuple(list_vertices1)
-    thistuple = (list_vertices1[0], list_vertices1[1])
-    
-    #create dataframe with cells info
-    columns_name = ['x_0','y_0','Cell_1','Cell_2','Cell_3','Cell_4','Cell_5']
-    nb_vertices = len(list_vertices1[0])
-    init = np.zeros((nb_vertices , len(columns_name)))
-    df_vertices = pd.DataFrame(data=init, columns=columns_name)
-    liste0 = []
-    
-    #get index of cell associated to each vertex
-    for v in range(0, len(thistuple[0])):
-        carre = seg[max(0, thistuple[0][v]-dist) : min(thistuple[0][v]+(dist+1), seg.shape[0]-1),
-            max(0, thistuple[1][v]-dist) : min(thistuple[1][v]+(dist+1), seg.shape[1]-1)]
-        cells = np.unique(carre)
-        
-        if len(cells)>3:
-            df_vertices.loc[v]['x_0'] = thistuple[0][v]
-            df_vertices.loc[v]['y_0'] = thistuple[1][v]
-            df_vertices.loc[v]['Cell_1'] = cells[1]
-            df_vertices.loc[v]['Cell_2'] = cells[2]
-            df_vertices.loc[v]['Cell_3'] = cells[3]
-
-            if len(np.unique(carre)) == 4 :
-                df_vertices.loc[v]['Cell_4'] = 'Nan'
-                df_vertices.loc[v]['Cell_5'] = 'Nan'
-            if len(np.unique(carre)) == 5 :
-                df_vertices.loc[v]['Cell_4'] = cells[4]
-                df_vertices.loc[v]['Cell_5'] = 'Nan'
-            if len(np.unique(carre)) == 6 :
-                df_vertices.loc[v]['Cell_4'] = cells[4]
-                df_vertices.loc[v]['Cell_5'] = cells[5]
-        else:
-            liste0.append(v)
-
-    df_vertices=df_vertices.drop(liste0)
-        
-    ind = 0
-    while ind < len(df_vertices) :
-    #print(df_vertices.shape[0])
-        cells_ind = np.array([df_vertices['Cell_1'].iloc[ind],
-                              df_vertices['Cell_2'].iloc[ind],
-                              df_vertices['Cell_3'].iloc[ind],
-                              df_vertices['Cell_4'].iloc[ind],
-                              df_vertices['Cell_5'].iloc[ind]])
-
-        liste_x0 = [df_vertices['x_0'].iloc[ind]]
-        liste_y0 = [df_vertices['y_0'].iloc[ind]]
-        liste_i = []
-        liste_cellsi = [cells_ind]
-
-
-        for i in range(ind+1, len(df_vertices)):
-
-            cells_i = np.array([df_vertices['Cell_1'].iloc[i],
-                                df_vertices['Cell_2'].iloc[i],
-                                df_vertices['Cell_3'].iloc[i],
-                                df_vertices['Cell_4'].iloc[i],
-                                df_vertices['Cell_5'].iloc[i]])
-
-
-            mask_TrueFalse = np.isin(cells_ind, cells_i)
-
-
-
-    
-            if np.sum(mask_TrueFalse) > 3 and np.isin(1., cells_i) and np.isin(1., cells_ind):
-                liste_cellsi.append(cells_i)
-                liste_i.append(df_vertices.axes[0][i])
-                liste_x0.append(df_vertices['x_0'].iloc[i])
-                liste_y0.append(df_vertices['y_0'].iloc[i])
-
-            if np.sum(mask_TrueFalse) >= 3 and np.isin(1., cells_i)==False and np.isin(1., cells_ind)==False:
-                liste_cellsi.append(cells_i)
-                liste_i.append(df_vertices.axes[0][i])
-                liste_x0.append(df_vertices['x_0'].iloc[i])
-                liste_y0.append(df_vertices['y_0'].iloc[i])
-
-        df_vertices['x_0'].iloc[ind]=int(np.round(np.mean(liste_x0)))
-        df_vertices['y_0'].iloc[ind]=int(np.round(np.mean(liste_y0)))
-
-        ucells = np.unique(liste_cellsi)
-
-
-        df_vertices['Cell_1'].iloc[ind] = ucells[0]
-
-        
-        if len(ucells)>1:
-            df_vertices['Cell_2'].iloc[ind] = ucells[1]
-        if len(ucells)>2:
-            df_vertices['Cell_3'].iloc[ind] = ucells[2]
-        if len(ucells)>3:
-            df_vertices['Cell_4'].iloc[ind] = ucells[3]
-        if len(ucells)>4:
-            df_vertices['Cell_5'].iloc[ind] = ucells[4]
-
-#print(liste_i)
-        df_vertices=df_vertices.drop(liste_i)
-
-        ind+=1
-            
-        df_vertices=df_vertices.reset_index(drop=True)
-
-    return df_vertices
-
-                
-    return df_junctions, edge_df 
 
 def generate_mesh(mask, seg=None, dilation_width=1):
     """ Generate mesh
