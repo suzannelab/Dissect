@@ -1,8 +1,9 @@
 import itertools
 import logging
-import networkx as nx
+
 import numpy as np
 import pandas as pd
+import networkx as nx
 
 from io import StringIO
 from scipy import ndimage

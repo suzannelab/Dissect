@@ -528,65 +528,70 @@ class Segmentation2D(Segmentation):
 
 
 
-def segmentation(mask, size_auto_remove=True, min_area=None, max_area=None, boundary_auto_remove=True):
-    """
-    Segment the cells of the image.
+    def segmentation(self, 
+                     size_auto_remove=True, 
+                     min_area=None, 
+                     max_area=None, 
+                     boundary_auto_remove=True):
+        """
+        Segment the cells of the image.
 
-    Paramaters
-    ----------
-    mask: np.array, filament=1 and background=0
-    size_auto_remove : bool, default: True, keep 95% of the cell area distribution. 
-	The 2.5% smallest cells are set to 0 (skeletonization error), the 2.5% largest cells are set to 1 (background).
-    min_area: integer, needs to be specified only if auto_remove is False. 
-	Minimum number of pixels of a cell. When smaller, cells are set to 0 (counts as skeletonization error)
-    max_area: interger, needs to be specified only if auto_remove is False. 
-	Maximum number of pixels of a cell. When larger, cells are set to 1 (counts as background)
-    Return
-    ------
-    segmented_im: np.array
-        Pixels of filaments are equal to 0
-        Pixels of the background = 1
-        Pixels of cell i = i
-    """
-    edges = filters.sobel(mask)
-    markers = np.zeros_like(mask)
-    markers[mask == 0] = 2
-    markers[mask > 0] = 1
+        Paramaters
+        ----------
+        mask: np.array, filament=1 and background=0
+        size_auto_remove : bool, default: True, keep 95% of the cell area distribution. 
+    	The 2.5% smallest cells are set to 0 (skeletonization error), the 2.5% largest cells are set to 1 (background).
+        min_area: integer, needs to be specified only if auto_remove is False. 
+    	Minimum number of pixels of a cell. When smaller, cells are set to 0 (counts as skeletonization error)
+        max_area: interger, needs to be specified only if auto_remove is False. 
+    	Maximum number of pixels of a cell. When larger, cells are set to 1 (counts as background)
+        Return
+        ------
+        segmented_im: np.array
+            Pixels of filaments are equal to 0
+            Pixels of the background = 1
+            Pixels of cell i = i
+        """
+        mask = self.skeleton.create_binary_image()
+        edges = filters.sobel(mask)
+        markers = np.zeros_like(mask)
+        markers[mask == 0] = 2
+        markers[mask > 0] = 1
 
-    segmented_im = ski_seg.watershed(edges, markers)
-    segmented_im, _ = ndi.label(segmented_im == 2)
- 
-    if size_auto_remove:
-        l_areas = np.unique(segmented_im, return_counts=True)[1][2:]
-        min_area = np.percentile(l_areas, 2.5)
-        max_area = np.percentile(l_areas, 97.5)
+        segmented_im = ski_seg.watershed(edges, markers)
+        segmented_im, _ = ndi.label(segmented_im == 2)
+     
+        if size_auto_remove:
+            l_areas = np.unique(segmented_im, return_counts=True)[1][2:]
+            min_area = np.percentile(l_areas, 2.5)
+            max_area = np.percentile(l_areas, 97.5)
 
-        segmented_im = morphology.remove_small_objects(segmented_im, min_area)
-        seg_max = morphology.remove_small_objects(segmented_im, max_area)
-        segmented_im[np.where(seg_max!=0)] = 1
-    else:
-        try:
             segmented_im = morphology.remove_small_objects(segmented_im, min_area)
             seg_max = morphology.remove_small_objects(segmented_im, max_area)
             segmented_im[np.where(seg_max!=0)] = 1
+        else:
+            try:
+                segmented_im = morphology.remove_small_objects(segmented_im, min_area)
+                seg_max = morphology.remove_small_objects(segmented_im, max_area)
+                segmented_im[np.where(seg_max!=0)] = 1
 
-        except TypeError:
-            print("If size_auto_remove is False, you must specify min_area and max_area")
+            except TypeError:
+                print("If size_auto_remove is False, you must specify min_area and max_area")
 
-    if boundary_auto_remove:
-        boundcells=[]
-        for i in range(len(np.unique(segmented_im))):
-            if (np.isin(0, np.where(segmented_im==i))
-                or np.isin(segmented_im.shape[0], np.where(segmented_im==i)[0])
-                or np.isin(segmented_im.shape[1]-1, np.where(segmented_im==i)[1])):
-                    boundcells.append(i)
-        if np.isin(0, boundcells):
-            boundcells.remove(0)
-        if np.isin(1, boundcells):
-            boundcells.remove(1)
-        for i in boundcells:
-            segmented_im[np.where(segmented_im==i)] = 1
-    return segmented_im
+        if boundary_auto_remove:
+            boundcells=[]
+            for i in range(len(np.unique(segmented_im))):
+                if (np.isin(0, np.where(segmented_im==i))
+                    or np.isin(segmented_im.shape[0], np.where(segmented_im==i)[0])
+                    or np.isin(segmented_im.shape[1]-1, np.where(segmented_im==i)[1])):
+                        boundcells.append(i)
+            if np.isin(0, boundcells):
+                boundcells.remove(0)
+            if np.isin(1, boundcells):
+                boundcells.remove(1)
+            for i in boundcells:
+                segmented_im[np.where(segmented_im==i)] = 1
+        return segmented_im
 
 def junction_around_cell(mask, seg, cell):
     """Find junctions around cell i.
@@ -719,17 +724,16 @@ def create_binary_image_junc(df_junc, ijunc, image):
 
 
 
-def get_cells(seg, df_junc, image):
+def get_cells(seg, df_junc):
     c1=[]
     c2=[]
 
-    for i in range (0,  df_junc.shape[0]):
+    for i in range(len((df_junc))):
     
         l=[]
         m=[]
         binary_junc_i = create_binary_image_junc(df_junc, i, image)
         dil=ndi.binary_dilation(binary_junc_i)*seg
-
         for ind in np.unique(dil)[1:]:
             t=(np.sum(np.isin(dil, ind)), ind)
             l.append(t)
@@ -737,9 +741,12 @@ def get_cells(seg, df_junc, image):
         u=np.array(l)
         v=u[np.argsort(u[:,0])][-2:,1]
         c1.append(v[0])
-        c2.append(v[1])
-    df_junc['Cell 1'] = c1
-    df_junc['Cell 2'] = c2
+        if len(v) == 1:
+            c2.append(0)
+        else:
+            c2.append(v[1])
+    df_junc['Cell1'] = c1
+    df_junc['Cell2'] = c2
 
     return df_junc
 
