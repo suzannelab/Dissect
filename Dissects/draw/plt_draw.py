@@ -202,3 +202,58 @@ def plot_junction_3D(skeleton, face_df, edge_df, vert_df, fig=None, **kwargs):
                                                   z=z_size*z_shape)),
                       )
     return fig
+
+
+def plot_aniso_cell(segmentation, fig=None):
+    if fig is None:
+        fig = go.Figure()
+
+    x_size = 1
+    y_size = 1
+    z_size = 1
+
+    x_size = segmentation.specs["x_size"]
+    y_size = segmentation.specs["y_size"]
+    try:
+        z_size = segmentation.specs["z_size"]
+    except:
+        pass
+
+
+    cmap = pl.cm.cividis
+    max_aniso = segmentation.face_df['aniso'][1:].max()
+    segmentation.face_df['norm_aniso'] = (segmentation.face_df['aniso']/max_aniso)
+    factor = 2
+    startx = (segmentation.face_df['fx'] - factor*segmentation.face_df['norm_aniso']*segmentation.face_df['orientationx'])/segmentation.specs["x_size"]
+    starty = (segmentation.face_df['fy'] - factor*segmentation.face_df['norm_aniso']*segmentation.face_df['orientationy'])/segmentation.specs["y_size"]
+    startz = (segmentation.face_df['fz'] - factor*segmentation.face_df['norm_aniso']*segmentation.face_df['orientationz'])/segmentation.specs["z_size"]
+    endx = (segmentation.face_df['fx'] + factor*segmentation.face_df['norm_aniso']*segmentation.face_df['orientationx'])/segmentation.specs["x_size"]
+    endy = (segmentation.face_df['fy'] + factor*segmentation.face_df['norm_aniso']*segmentation.face_df['orientationy'])/segmentation.specs["y_size"]
+    endz = (segmentation.face_df['fz'] + factor*segmentation.face_df['norm_aniso']*segmentation.face_df['orientationz'])/segmentation.specs["z_size"]
+    
+    for i in segmentation.face_df.index[1:]:
+        fig.add_trace(
+                go.Scatter3d(
+                    x=[startx[i], endx[i]],
+                    y=[starty[i], endy[i]],
+                    z=[startz[i], endz[i]],
+                    mode='lines',
+                    line={#"color":'red',
+                          "color":'rgb'+str(cmap(int(segmentation.face_df.loc[i]['norm_aniso']*cmap.N))[0:3]),
+                          "width":10,
+                         },                
+                )
+            )
+        
+    fig.update_layout(title='aniso',
+                      autosize=False,
+                      width=1000,
+                      height=1000,
+                      margin=dict(l=65, r=50, b=65, t=90),
+                      showlegend=False,
+                      scene=dict(aspectmode="manual",
+                                 aspectratio=dict(x=x_size*x_shape,
+                                                  y=y_size*y_shape,
+                                                  z=z_size*z_shape)),
+                      )
+    return fig
