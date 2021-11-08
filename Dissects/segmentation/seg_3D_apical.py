@@ -575,13 +575,13 @@ def assign_length(df_junc, edge_df, vert_df):
     edge_df["length"] = np.nan
 
     for i in range(len(edge_df)):
-        srce_xyz = (vert_df.loc[edge_df.loc[i].srce].x_pix,
-                    vert_df.loc[edge_df.loc[i].srce].y_pix,
-                    vert_df.loc[edge_df.loc[i].srce].z_pix)
-
-        trgt_xyz = (vert_df.loc[edge_df.loc[i].trgt].x_pix,
-                    vert_df.loc[edge_df.loc[i].trgt].y_pix,
-                    vert_df.loc[edge_df.loc[i].trgt].z_pix)
+        srce_xyz = (np.around(vert_df.loc[edge_df.loc[i].srce].x_pix, 1),
+                    np.around(vert_df.loc[edge_df.loc[i].srce].y_pix, 1),
+                    np.around(vert_df.loc[edge_df.loc[i].srce].z_pix, 1))
+    
+        trgt_xyz = (np.around(vert_df.loc[edge_df.loc[i].trgt].x_pix, 1),
+                    np.around(vert_df.loc[edge_df.loc[i].trgt].y_pix, 1),
+                    np.around(vert_df.loc[edge_df.loc[i].trgt].z_pix, 1))
         junc_i1 = np.array([srce_xyz, trgt_xyz])
         junc_i2 = np.array([trgt_xyz, srce_xyz])
 
