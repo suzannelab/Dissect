@@ -7,7 +7,8 @@ import networkx as nx
 
 from io import StringIO
 from scipy import ndimage
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon as shape_polygon
+from skimage.draw import polygon
 from sklearn.neighbors import KDTree, BallTree
 
 from ..utils.utils import pixel_to_um
@@ -31,6 +32,9 @@ class Segmentation3D(Segmentation):
 
     def __init__(self, skeleton):
         Segmentation.__init__(self, skeleton)
+
+    def __init__(self, skeleton, specs):
+        Segmentation.__init__(self, skeleton, specs)
 
     def find_vertex(self):
         """
@@ -295,8 +299,6 @@ class Segmentation3D(Segmentation):
         edge_df : DataFrame
         vert_df : DataFrame
         """
-        image_specs = default_image_specs
-        image_specs.update(**kwargs)
 
         self.find_vertex()
         self.find_edge(half_edge=True)
@@ -307,9 +309,9 @@ class Segmentation3D(Segmentation):
         self.vert_df['y_pix'] = self.vert_df['y']
         self.vert_df['z_pix'] = self.vert_df['z']
 
-        pixel_to_um(self.vert_df, image_specs, [
+        pixel_to_um(self.vert_df, self.specs, [
                     'x_pix', 'y_pix', 'z_pix'], list('xyz'))
-        pixel_to_um(self.points_df, image_specs, [
+        pixel_to_um(self.points_df, self.specs, [
                     'x_pix', 'y_pix', 'z_pix'], list('xyz'))
 
         # Mark face in the border
@@ -324,8 +326,11 @@ class Segmentation3D(Segmentation):
         self.face_df["border"] = 0
         self.face_df.loc[self.edge_df[self.edge_df.opposite == -1]
                     ['face'].to_numpy(), 'border'] = 1
-
         
+        self.update_geom()
+        self.compute_normal()
+
+        self.face_df.drop(-1, axis=0, inplace=True)
 
 
     def check_poly_is_valid(self, vert_order):
@@ -352,9 +357,239 @@ class Segmentation3D(Segmentation):
         coords = []
         for i in range(len(rot_pos)):
             coords.append((rot_pos[i][0], rot_pos[i][1]))
-        poly = Polygon(coords)
+        poly = shape_polygon(coords)
         return poly.is_valid
 
+
+
+    def image_vertex(self, binary=True, dilation_width=3):
+        tiff_vertex = np.zeros([self.specs['z_shape'], 
+                                self.specs['y_shape'],
+                                self.specs['x_shape']])
+
+        if binary:
+            tiff_vertex[self.vert_df.z_pix.to_numpy().astype(int),
+                        self.vert_df.y_pix.to_numpy().astype(int),
+                        self.vert_df.x_pix.to_numpy().astype(int)] = 1
+            if dilation_width!=0:
+                s = ndimage.generate_binary_structure(dilation_width, dilation_width)
+                tiff_vertex = ndimage.morphology.binary_dilation(tiff_vertex, structure=s)
+        else : 
+            if dilation_width !=0:
+                s = ndimage.generate_binary_structure(dilation_width, dilation_width)
+                for v in self.vert_df.index:
+                    tmp = np.zeros([self.specs['z_shape'], 
+                                    self.specs['y_shape'],
+                                    self.specs['x_shape']])
+                    tmp[self.vert_df.loc[v, 'z_pix'].astype(int), 
+                        self.vert_df.loc[v, 'y_pix'].astype(int), 
+                        self.vert_df.loc[v, 'x_pix'].astype(int)] = 1
+
+                    tmp = ndimage.morphology.binary_dilation(tmp, structure=s).astype(int)
+                    pos = np.where(tmp==1)
+                    tiff_vertex[pos] = v+1
+
+            else : 
+                for v in self.vert_df.index:
+                    tiff_vertex[self.vert_df.loc[v, 'z_pix'].astype(int), 
+                                self.vert_df.loc[v, 'y_pix'].astype(int), 
+                                self.vert_df.loc[v, 'x_pix'].astype(int)] = v+1
+
+
+        return tiff_vertex
+
+    def image_junction(self, dilation_width=3, aleatory=False):
+        tiff_junction = np.zeros([self.specs['z_shape'], 
+                                  self.specs['y_shape'],
+                                  self.specs['x_shape']])
+        unique_value_edge = np.unique(self.edge_df.index)
+        replace_value_edge = unique_value_edge.copy()
+        if aleatory:
+            replace_value_edge = np.random.randint(1, 2**16, len(unique_value_edge))
+
+        if dilation_width!=0:
+            s = ndimage.generate_binary_structure(dilation_width, dilation_width)
+            for e in unique_value_edge:
+                tmp = np.zeros([self.specs['z_shape'], 
+                                self.specs['y_shape'],
+                                self.specs['x_shape']])
+                tmp[list(self.edge_df.loc[unique_value_edge[e], 'point_z'])[0].astype(int),
+                    list(self.edge_df.loc[unique_value_edge[e], 'point_y'])[0].astype(int),
+                    list(self.edge_df.loc[unique_value_edge[e], 'point_x'])[0].astype(int)] = 1
+                
+                tmp = ndimage.morphology.binary_dilation(tmp, structure=s).astype(int)
+                pos = np.where(tmp==1)
+                tiff_junction[pos] = replace_value_edge[e]
+
+        else : 
+            for e in unique_value_edge:
+                tiff_junction[list(self.edge_df.loc[unique_value_edge[e], 'point_z'])[0].astype(int),
+                              list(self.edge_df.loc[unique_value_edge[e], 'point_y'])[0].astype(int),
+                              list(self.edge_df.loc[unique_value_edge[e], 'point_x'])[0].astype(int)] = replace_value_edge[e]
+                
+        return tiff_junction
+
+
+    def image_face(self, aleatory=False, thickness=0.5):
+        tiff_face = np.zeros([self.specs['z_shape'], 
+                              self.specs['y_shape'],
+                              self.specs['x_shape']])
+        unique_value_face = np.unique(self.face_df.index)
+        replace_value_face = unique_value_face.copy()
+        if aleatory:
+            replace_value_face = np.random.randint(1, 2**16, len(unique_value_face))
+
+        for f in range(len(unique_value_face)):
+            tmp = self.enlarge_face_plane(unique_value_face[f], thickness)
+            pos = np.where(tmp==1)
+            tiff_face[pos] = replace_value_face[f]
+
+        return tiff_face
+
+
+    def update_geom(self):
+        self.edge_df[['sx', 'sy', 'sz']] = self.vert_df.loc[self.edge_df.srce,
+                                                  list('xyz')].to_numpy()
+        self.edge_df[['tx', 'ty', 'tz']] = self.vert_df.loc[self.edge_df.trgt,
+                                                  list('xyz')].to_numpy()
+
+        self.face_df[['fx', 'fy', 'fz']] = 0
+        self.face_df['fx'] = self.edge_df.groupby('face').mean()['sx']
+        self.face_df['fy'] = self.edge_df.groupby('face').mean()['sy']
+        self.face_df['fz'] = self.edge_df.groupby('face').mean()['sz']
+
+
+
+    def compute_normal(self):
+        self.face_df.loc[-1] = np.zeros((self.face_df.shape[1]))
+
+        # update centroid face
+        #face_df[list('xyz')] = edge_df.groupby("face")[['sx','sy','sz']].mean()
+        self.edge_df[['fz', 'fy', 'fx']] = self.face_df.loc[self.edge_df.face.to_numpy()
+                                                  ][['fz', 'fy', 'fx']].to_numpy()
+        self.edge_df[['dz', 'dy', 'dx']] = self.edge_df[['tz', 'ty', 'tx']
+                                              ].to_numpy() - self.edge_df[['sz', 'sy', 'sx']].to_numpy()
+        self.edge_df[['rz', 'ry', 'rx']] = self.edge_df[['sz', 'sy', 'sx']
+                                              ].to_numpy() - self.edge_df[['fz', 'fy', 'fx']].to_numpy()
+        r_ij = self.edge_df[['dz', 'dy', 'dx']].to_numpy()
+        r_ai = self.edge_df[['rz', 'ry', 'rx']].to_numpy()
+        normals = np.cross(r_ai, r_ij)
+        self.edge_df[['nz', 'ny', 'nx']] = normals
+
+
+    def enlarge_face_plane(self, 
+                           face_id,
+                           thickness=0.5,
+                            ):
+
+        # normal normalisé ? 
+        n = (np.mean(self.edge_df[self.edge_df['face'] == face_id][['nx', 'ny', 'nz']])/np.linalg.norm(
+             np.mean(self.edge_df[self.edge_df['face'] == face_id][['nx', 'ny', 'nz']]))).to_numpy()
+        
+        # list points in um   
+        xx = self.points_df[self.points_df.face==face_id]['x']
+        yy = self.points_df[self.points_df.face==face_id]['y']
+        zz = self.points_df[self.points_df.face==face_id]['z']
+        
+        # Find the top and bottom position according to face plane in um
+        top = np.array((xx, yy, zz)).flatten(order='F').reshape((len(xx), 3)) + thickness*n
+        bottom = np.array((xx, yy, zz)).flatten(order='F').reshape((len(xx), 3)) - thickness*n
+        top = pd.DataFrame(top, columns=[list('xyz')])
+        bottom = pd.DataFrame(bottom, columns=[list('xyz')])
+
+        # Convert um position in pixel position
+        top['x_pix'] = (top['x']/self.specs['x_size']).astype('int')
+        top['y_pix'] = (top['y']/self.specs['y_size']).astype('int')
+        top['z_pix'] = (top['z']/self.specs['z_size']).astype('int')
+        bottom['x_pix'] = (bottom['x']/self.specs['x_size']).astype('int')
+        bottom['y_pix'] = (bottom['y']/self.specs['y_size']).astype('int')
+        bottom['z_pix'] = (bottom['z']/self.specs['z_size']).astype('int')
+
+        # Replace value which exceed boundary to image border value
+        top['x_pix'] = np.where((top['x_pix']<0), 0, top['x_pix'])
+        top['y_pix'] = np.where((top['y_pix']<0), 0, top['y_pix'])
+        top['z_pix'] = np.where((top['z_pix']<0), 0, top['z_pix'])
+        bottom['x_pix'] = np.where((bottom['x_pix']<0), 0, bottom['x_pix'])
+        bottom['y_pix'] = np.where((bottom['y_pix']<0), 0, bottom['y_pix'])
+        bottom['z_pix'] = np.where((bottom['z_pix']<0), 0, bottom['z_pix'])
+        
+        top['x_pix'] = np.where((top['x_pix']>=self.specs['x_shape']), self.specs['x_shape']-1, top['x_pix'])
+        top['y_pix'] = np.where((top['y_pix']>=self.specs['y_shape']), self.specs['y_shape']-1, top['y_pix'])
+        top['z_pix'] = np.where((top['z_pix']>=self.specs['z_shape']), self.specs['z_shape']-1, top['z_pix'])
+        bottom['x_pix'] = np.where((bottom['x_pix']>=self.specs['x_shape']), self.specs['x_shape']-1, bottom['x_pix'])
+        bottom['y_pix'] = np.where((bottom['y_pix']>=self.specs['y_shape']), self.specs['y_shape']-1, bottom['y_pix'])
+        bottom['z_pix'] = np.where((bottom['z_pix']>=self.specs['z_shape']), self.specs['z_shape']-1, bottom['z_pix'])
+        
+        
+        img_plane = np.zeros([self.specs['z_shape'], self.specs['y_shape'],self.specs['x_shape']])
+        try:
+            # top plane
+            for i, data in top.iterrows():
+                img_plane[int(data.z_pix), int(data.y_pix), int(data.x_pix)] = 1
+            # bottom plane
+            for i, data in bottom.iterrows():
+                img_plane[int(data.z_pix), int(data.y_pix), int(data.x_pix)] = 1
+            # middle plane
+            for i, data in self.vert_df.loc[self.edge_df[self.edge_df.face == face_id].srce.to_numpy()].iterrows():
+                img_plane[int(data.z_pix), int(data.y_pix), int(data.x_pix)] = 1
+       
+        except Exception as ex:
+                print(ex)
+                pass
+
+
+        pts = np.concatenate((np.where(img_plane == 1)[0], np.where(img_plane == 1)[
+                             1], np.where(img_plane == 1)[2])).reshape(3, len(np.where(img_plane == 1)[0]))
+        pts = pts.flatten(order='F').reshape(len(np.where(img_plane == 1)[0]), 3)
+        
+        test = pd.DataFrame(pts, columns=list('zyx'))
+
+        for z_ in np.unique(test.z):
+            poly_points = test[test.z == z_][list('xy')]
+            if poly_points.shape[0] > 1:
+                mask = np.zeros(
+                    (img_plane.shape[2], img_plane.shape[1]), dtype=np.uint8)
+                r = poly_points.to_numpy().flatten()[0::2]
+                c = poly_points.to_numpy().flatten()[1::2]
+                rr, cc = polygon(r, c)
+                mask[rr, cc] = 1
+                xx, yy = np.where(mask != 0)
+                for i in range(len(xx)):
+                    img_plane[int(z_), int(yy[i]), int(xx[i])] = 1
+            else:
+                img_plane[int(z_), int(poly_points.y), int(poly_points.x)] = 1
+
+        for y_ in np.unique(test.y):
+            poly_points = test[test.y == y_][list('xz')]
+            if poly_points.shape[0] > 1:
+                mask = np.zeros(
+                    (img_plane.shape[2], img_plane.shape[0]), dtype=np.uint8)
+                r = poly_points.to_numpy().flatten()[0::2]
+                c = poly_points.to_numpy().flatten()[1::2]
+                rr, cc = polygon(r, c)
+                mask[rr, cc] = 1
+                xx, zz = np.where(mask != 0)
+                for i in range(len(xx)):
+                    img_plane[int(zz[i]), int(y_), int(xx[i])] = 1
+            else:
+                img_plane[int(poly_points.z), int(y_), int(poly_points.x)] = 1
+
+        for x_ in np.unique(test.x):
+            poly_points = test[test.x == x_][list('yz')]
+            if poly_points.shape[0] > 1:
+                mask = np.zeros(
+                    (img_plane.shape[1], img_plane.shape[0]), dtype=np.uint8)
+                r = poly_points.to_numpy().flatten()[0::2]
+                c = poly_points.to_numpy().flatten()[1::2]
+                rr, cc = polygon(r, c)
+                mask[rr, cc] = 1
+                yy, zz = np.where(mask != 0)
+                for i in range(len(yy)):
+                    img_plane[int(zz[i]), int(yy[i]), int(x_)] = 1
+            else:
+                img_plane[int(poly_points.z), int(poly_points.y), int(x_)] = 1
+
+        return img_plane
 
 
 def junctions_length(skeleton, pixel_size, clean=True):
