@@ -134,7 +134,7 @@ def morphology_analysis(segmentation,
                 segmentation.edge_df['orientation_xz'] = segmentation.edge_df['orientation_xz']*180/np.pi
                 segmentation.edge_df['orientation_yz'] = segmentation.edge_df['orientation_yz']*180/np.pi
     segmentation.face_df.drop(-1, axis=0, inplace=True)
-    
+
 def _lvl_sum(edge_df, df, lvl):
     df_ = df
     if isinstance(df, np.ndarray):
@@ -181,7 +181,6 @@ def face_intensity(image,
                    segmentation,
                    thickness,
                    dilation,
-                   pixel_size,
                    new_column='intensity'):
     """
 
@@ -219,6 +218,7 @@ def face_intensity(image,
         intensity_output = image_no_junction*img_face
         segmentation.face_df.loc[f, new_column] = np.mean(
             intensity_output[np.where(intensity_output > 0)])
+    segmentation.face_df.drop(-1, axis=0, inplace=True)
     return all_enlarge_face_id
 
 

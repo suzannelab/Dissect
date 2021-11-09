@@ -5,10 +5,12 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 
+
+
 from io import StringIO
 from scipy import ndimage
 from shapely.geometry import Polygon as shape_polygon
-from skimage.draw import polygon
+from skimage.draw import polygon, line_nd
 from sklearn.neighbors import KDTree, BallTree
 
 from ..utils.utils import pixel_to_um
@@ -362,7 +364,7 @@ class Segmentation3D(Segmentation):
 
 
 
-    def image_vertex(self, binary=True, dilation_width=3):
+    def image_identity_vertex(self, binary=True, dilation_width=3):
         tiff_vertex = np.zeros([self.specs['z_shape'], 
                                 self.specs['y_shape'],
                                 self.specs['x_shape']])
@@ -398,7 +400,7 @@ class Segmentation3D(Segmentation):
 
         return tiff_vertex
 
-    def image_junction(self, dilation_width=3, aleatory=False):
+    def image_identity_junction(self, dilation_width=3, aleatory=False):
         tiff_junction = np.zeros([self.specs['z_shape'], 
                                   self.specs['y_shape'],
                                   self.specs['x_shape']])
@@ -429,8 +431,45 @@ class Segmentation3D(Segmentation):
                 
         return tiff_junction
 
+    def image_analyse_junction(self, column, normalize=False, normalize_max=None, dilation_width=3, border=True):
+        tiff_junction = np.zeros([self.specs['z_shape'], 
+                                  self.specs['y_shape'],
+                                  self.specs['x_shape']])
+        
+        if normalize:
+            if normalize_max is None:
+                self.edge_df[column+'norm'] = self.edge_df[column]/np.max(self.edge_df[column])
+            else:
+                self.edge_df[column+'norm'] = self.edge_df[column]/normalize_max
+            column = column+'norm'
 
-    def image_face(self, aleatory=False, thickness=0.5):
+        if border: 
+            edge_id = self.edge_df.index.to_numpy()
+        else:
+            edge_id = self.edge_df[self.edge_df.opposite!=-1].index.to_numpy()
+
+        for e in edge_id:
+            tmp = np.zeros([self.specs['z_shape'], 
+                              self.specs['y_shape'],
+                              self.specs['x_shape']])
+            x_ = list(self.points_df[self.points_df.edge==e]['x_pix'].to_numpy().astype(int))
+            y_ = list(self.points_df[self.points_df.edge==e]['y_pix'].to_numpy().astype(int))
+            z_ = list(self.points_df[self.points_df.edge==e]['z_pix'].to_numpy().astype(int))
+            #(val.myosin_intensity_mean/np.max(edge_df.myosin_intensity_mean)*255).astype('int')
+            
+            if dilation_width!=0:
+                s = ndimage.generate_binary_structure(dilation_width, dilation_width)
+                tmp[z_, y_, x_] = 1
+                tmp = ndimage.morphology.binary_dilation(tmp, structure=s).astype(int)
+                pos = np.where(tmp==1)
+                tiff_junction[pos] = self.edge_df.loc[e, column]
+            else:
+                tiff_junction[z_, y_, x_] = self.edge_df.loc[e, column]
+    
+        return tiff_junction
+
+
+    def image_identity_face(self, aleatory=False, thickness=0.5):
         tiff_face = np.zeros([self.specs['z_shape'], 
                               self.specs['y_shape'],
                               self.specs['x_shape']])
@@ -445,6 +484,81 @@ class Segmentation3D(Segmentation):
             tiff_face[pos] = replace_value_face[f]
 
         return tiff_face
+
+
+    def image_analyse_face(self, column, normalize=False, normalize_max=None, thickness=0.5, border=True):
+        tiff_face = np.zeros([self.specs['z_shape'], 
+                              self.specs['y_shape'],
+                              self.specs['x_shape']])
+
+        if normalize:
+            if normalize_max is None:
+                self.face_df[column+'norm'] = self.face_df[column]/np.max(self.face_df[column])
+            else:
+                self.face_df[column+'norm'] = self.face_df[column]/normalize_max
+            column = column+'norm'
+
+
+        if border:
+            face_id = self.face_df.index.to_numpy()
+        else:
+            face_id = self.face_df[self.face_df.border==0].index.to_numpy()
+
+        for f in face_id:
+            tmp = self.enlarge_face_plane(f, thickness=thickness)
+            face_position = np.where(tmp==1)
+            
+            tiff_face[face_position] = self.face_df.loc[f, column]
+
+        return tiff_face
+
+
+    def image_aniso(self, normalize=True, normalize_max=None, factor=2, dilation_width=3):
+
+        
+
+        tiff_aniso = np.zeros([self.specs['z_shape'], 
+                              self.specs['y_shape'],
+                              self.specs['x_shape']])
+        if normalize:
+            if normalize_max is None:
+                self.face_df['aniso_norm'] = self.face_df['aniso']/np.max(self.face_df['aniso'])
+            else:
+                self.face_df['aniso_norm'] = self.face_df['aniso']/normalize_max
+                
+        startx = ((self.face_df['fx'] - factor*self.face_df['aniso_norm']*self.face_df['orientationx'])/self.specs['x_size']).to_numpy().astype(int)
+        starty = ((self.face_df['fy'] - factor*self.face_df['aniso_norm']*self.face_df['orientationy'])/self.specs['y_size']).to_numpy().astype(int)
+        startz = ((self.face_df['fz'] - factor*self.face_df['aniso_norm']*self.face_df['orientationz'])/self.specs['z_size']).to_numpy().astype(int)
+        endx = ((self.face_df['fx'] + factor*self.face_df['aniso_norm']*self.face_df['orientationx'])/self.specs['x_size']).to_numpy().astype(int)
+        endy = ((self.face_df['fy'] + factor*self.face_df['aniso_norm']*self.face_df['orientationy'])/self.specs['y_size']).to_numpy().astype(int)
+        endz = ((self.face_df['fz'] + factor*self.face_df['aniso_norm']*self.face_df['orientationz'])/self.specs['z_size']).to_numpy().astype(int)
+
+        for i in self.face_df.index:
+            
+            tmp_image = np.zeros([self.specs['z_shape'], 
+                                  self.specs['y_shape'],
+                                  self.specs['x_shape']])
+
+            coords = line_nd((startx[i-1], starty[i-1], startz[i-1]),
+                             (endx[i-1], endy[i-1], endz[i-1]), 
+                             endpoint=True,
+                             integer=True)
+            
+            tmp_image[coords[2],
+                       coords[1], 
+                       coords[0]] = 1
+            #enlarge
+            if dilation_width!=0:
+                s = ndimage.generate_binary_structure(dilation_width, dilation_width)
+                tmp_image = ndimage.morphology.binary_dilation(tmp_image, structure=s)
+            
+            pos = np.where(tmp_image==1)
+            tiff_aniso[pos] = self.face_df.loc[i, 'aniso_norm']
+
+        return tiff_aniso
+
+
+
 
 
     def update_geom(self):
