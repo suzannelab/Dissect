@@ -515,8 +515,6 @@ class Segmentation3D(Segmentation):
 
     def image_aniso(self, normalize=True, normalize_max=None, factor=2, dilation_width=3):
 
-        
-
         tiff_aniso = np.zeros([self.specs['z_shape'], 
                               self.specs['y_shape'],
                               self.specs['x_shape']])
@@ -525,25 +523,26 @@ class Segmentation3D(Segmentation):
                 self.face_df['aniso_norm'] = self.face_df['aniso']/np.max(self.face_df['aniso'])
             else:
                 self.face_df['aniso_norm'] = self.face_df['aniso']/normalize_max
-                
+
         startx = ((self.face_df['fx'] - factor*self.face_df['aniso_norm']*self.face_df['orientationx'])/self.specs['x_size']).to_numpy().astype(int)
         starty = ((self.face_df['fy'] - factor*self.face_df['aniso_norm']*self.face_df['orientationy'])/self.specs['y_size']).to_numpy().astype(int)
         startz = ((self.face_df['fz'] - factor*self.face_df['aniso_norm']*self.face_df['orientationz'])/self.specs['z_size']).to_numpy().astype(int)
         endx = ((self.face_df['fx'] + factor*self.face_df['aniso_norm']*self.face_df['orientationx'])/self.specs['x_size']).to_numpy().astype(int)
         endy = ((self.face_df['fy'] + factor*self.face_df['aniso_norm']*self.face_df['orientationy'])/self.specs['y_size']).to_numpy().astype(int)
         endz = ((self.face_df['fz'] + factor*self.face_df['aniso_norm']*self.face_df['orientationz'])/self.specs['z_size']).to_numpy().astype(int)
+        c = (self.face_df['aniso_norm']*255/np.max(self.face_df['aniso_norm'])).to_numpy()
+        
+        for i in range(len(startx)):
 
-        for i in self.face_df.index:
-            
             tmp_image = np.zeros([self.specs['z_shape'], 
                                   self.specs['y_shape'],
                                   self.specs['x_shape']])
 
-            coords = line_nd((startx[i-1], starty[i-1], startz[i-1]),
-                             (endx[i-1], endy[i-1], endz[i-1]), 
+            coords = line_nd((startx[i], starty[i], startz[i]),
+                             (endx[i], endy[i], endz[i]), 
                              endpoint=True,
                              integer=True)
-            
+
             tmp_image[coords[2],
                        coords[1], 
                        coords[0]] = 1
@@ -551,14 +550,11 @@ class Segmentation3D(Segmentation):
             if dilation_width!=0:
                 s = ndimage.generate_binary_structure(dilation_width, dilation_width)
                 tmp_image = ndimage.morphology.binary_dilation(tmp_image, structure=s)
-            
+
             pos = np.where(tmp_image==1)
-            tiff_aniso[pos] = self.face_df.loc[i, 'aniso_norm']
+            tiff_aniso[pos] = c[i]
 
         return tiff_aniso
-
-
-
 
 
     def update_geom(self):
