@@ -1,11 +1,12 @@
-# Dissects : DisPerSE cell & tissue segmentation
-A library for segmentation and analysis of 2D and 3D tissue.
+# Dissect :  DisPerSE-based Segmentation for Cells and Tissues
+# Segmentation and analysis of highly remodeled epithelial surfaces in 3D
+
 
 ## Overview
-[Mettre une figure du pipeline d'analyse]
+`Dissect` library provide a way to segment and analyse apical 3D tissue. Using DiSperSE to generate a skeleton, `Dissect` is able to segment the skeleton and provide morphological analysis. It is also possible to cross the segmentation with other channel for different kind of signal analysis. 
 
 
-
+## Documentation
 In the repository notebook-DEMO, there is several notebook which explain how to use our tool Dissect.
 - **0-ExplainationOfDifferentFile** : Explanation of the process of segmentation with the different file format at different processus of the analysis. 
 - **1-Demo-Disperse** : How to install and use Disperse from Thierry Sousbie on 2D and apical 3D images to obtain the best segmentation. 
@@ -16,7 +17,9 @@ In the repository notebook-DEMO, there is several notebook which explain how to 
 
 ### Authors
 * Sophie Theis - @sophietheis
-* Tatiana Merle - 
+* Tatiana Merle - @TatiaM
+* Emmanuel Martin
+* Magali Suzanne
 
 ### Dependencies
 * Python >= 3.6
