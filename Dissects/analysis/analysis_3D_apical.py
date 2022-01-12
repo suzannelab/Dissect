@@ -197,8 +197,9 @@ def face_intensity(image,
                       segmentation.points_df.y_pix.astype(int), 
                       segmentation.points_df.x_pix.astype(int)] = 1
     s = sci.ndimage.generate_binary_structure(dilation, dilation)
-    image_no_junction = ~sci.ndimage.morphology.binary_dilation(
+    image_no_junction = sci.ndimage.morphology.binary_dilation(
                                      image_no_junction, s).astype(int)
+    image_no_junction = ((~image_no_junction.astype(bool))).astype(int)
 
     image_no_junction = image * image_no_junction
     
