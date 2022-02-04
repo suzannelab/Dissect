@@ -3,8 +3,11 @@ import pandas as pd
 
 import warnings
 
+from scipy import ndimage
+
 
 class Skeleton():
+
 
     def __init__(self, cp_df, fil_df, point_df, cp_filinfo_df, specs={}):
         """ Create an skeleton object
@@ -33,6 +36,13 @@ class Skeleton():
             self.critical_point[list('xy')] = self.critical_point[
                 list('xy')].astype(float)
             self.point[list('xy')] = self.point[list('xy')].astype(float)
+
+    def clean(self):
+        """ Clean skeleton by remove lonely critical point and filament
+        which have one free side. 
+        """
+        self.remove_lonely_cp()
+        self.remove_free_filament()
 
     def remove_lonely_cp(self):
         """ Remove critical point which are not conected to a filament.
@@ -119,7 +129,7 @@ class Skeleton():
             self.filament.drop(labels='id', axis=1, inplace=True)
 
 
-    def create_binary_image(self):
+    def create_binary_image(self, dilation_width=0):
         """ Create a binary image from skeleton
         Returns
         -------
@@ -141,5 +151,11 @@ class Skeleton():
             else:
                 binary_image[coord.astype(int)[0], coord.astype(int)[
                     1], coord.astype(int)[2]] = 1
+        
+        binary_image = binary_image.T
 
-        return binary_image.T
+        if dilation_width!=0:
+            s = ndimage.generate_binary_structure(dilation_width, dilation_width)
+            binary_image = ndimage.morphology.binary_dilation(binary_image, structure=s)
+
+        return binary_image

@@ -12,7 +12,6 @@ dist
 
 # Extension
 *.eps *.avi
-*.png
 *.pyc # python precompalied
 
 

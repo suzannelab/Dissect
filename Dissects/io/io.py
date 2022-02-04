@@ -266,7 +266,7 @@ def save_fits(image, filename, path=None):
     logging.info('Saved file: {filename} into {path} directory')
 
 
-def save_image(image_array, filename, path=None, **kwargs):
+def save_image(image_array, filename, path=None, type_='uint16', **kwargs):
     """ Save np.array image into tif file.
 
     Parameters
@@ -281,7 +281,7 @@ def save_image(image_array, filename, path=None, **kwargs):
     if path is None:
         warnings.warn("tif file will be saved in the working directory.")
         path = os.getcwd()
-
+ 
     filepath = os.path.join(path, filename)
 
     x_size = 1
@@ -299,14 +299,58 @@ def save_image(image_array, filename, path=None, **kwargs):
             pass
 
     tifffile.imwrite(filepath,
-                     image_array.astype('float32'),
+                     image_array.astype(type_),
                      imagej=True,
                      resolution=(1/x_size, 1/y_size),
                      metadata={'spacing': z_size,
                                'unit': 'um',
-                               'axes': 'XYZCT'})
+                               'axes': 'ZYX',
+                               'hyperstack':True,
+                               'channels':1,
+                               'slices':image_array.shape[0]})
 
     logging.info('Saved file: {filename} into {path} directory')
+
+
+
+def save_image_analyse_face(enlarge_face,
+                           face_df, 
+                           column,
+                           normalize=True,
+                           normalize_max=None):
+    
+    """
+    TO DO : need to be fixed to worked in the library
+    """
+    if normalize:
+        if normalize_max is None:
+            face_df[column+'_norm'] = face_df[column]/face_df[column].max()
+        else:
+            face_df[column+'_norm'] = face_df[column]/normalize_max
+        
+    
+    saving_image = np.zeros(enlarge_face.shape)
+    
+    for f in face_df.index:
+        face_position = np.where(enlarge_face==f+1)
+        if normalize:
+            saving_image[face_position] = face_df.loc[f,column+'_norm']
+        else:
+            saving_image[face_position] = face_df.loc[f,column]
+        
+    
+    tifffile.imwrite(os.path.join(directory, IMAGE_NAME[:-4] +'_'+ column +'.tif'),
+                     saving_image.astype('uint16'),
+                     imagej=True,
+                     resolution=(1/X_SIZE, 1/Y_SIZE),
+                     metadata={'spacing': Z_SIZE,
+                               'unit': 'um',
+                               'axes': 'ZYX',
+                               'hyperstack':True,
+                               'channels':1,
+                               'slices':saving_image.shape[0],
+                              })
+
 
 
 def save_vtp(skeleton, filename, path=None):
