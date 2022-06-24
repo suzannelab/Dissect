@@ -930,9 +930,11 @@ def assign_length(df_junc, edge_df, vert_df):
         junc_i1 = np.array([srce_xyz, trgt_xyz])
         junc_i2 = np.array([trgt_xyz, srce_xyz])
 
+
         for ind in range(len(df_junc)):
             junc_ind1 = np.array([df_junc.s_xyz[ind], df_junc.t_xyz[ind]])
             junc_ind2 = np.array([df_junc.t_xyz[ind], df_junc.s_xyz[ind]])
             if np.all(junc_i1 == junc_ind1) or np.all(junc_i1 == junc_ind2) or np.all(
                     junc_i2 == junc_ind2) or np.all(junc_i2 == junc_ind1):
                 edge_df["length"][i] = df_junc['length_um'][ind]
+

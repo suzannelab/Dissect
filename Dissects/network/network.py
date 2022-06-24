@@ -322,6 +322,7 @@ def centrality_array(img, dil, node_df, measure, pixel_size) :
     return centrality
     
 
+
 def branch_analysis(df_junc, skel, image_myo, pixel_size):
     """
     Calculate straight length, tortuosity, mean and direction for each branch (from node to node) of the network
@@ -345,6 +346,7 @@ def branch_analysis(df_junc, skel, image_myo, pixel_size):
 
     for i in range(len(df_junc)):
         
+
         #df_junc.points_coords_binaire[i][:,2] = (df_junc.points_coords.iloc[i][:,2]*pixel_size['Z_SIZE']).astype(int)
         
         s_xyz = (skel.critical_point.x.iloc[df_junc.srce[i]],
@@ -367,7 +369,6 @@ def branch_analysis(df_junc, skel, image_myo, pixel_size):
 
         lm = np.mean(image_myo.T[tuple((df_junc.points_coords_binaire.loc[i].T).astype(int))])
         lmean.append(lm)
-
 
 
     df_junc['s_xyz'] = ls 
@@ -444,6 +445,7 @@ def global_network_property(skel, df_junc, node_df, image_myo):
     global_network_df : DataFrame
 
     """
+
     bin_skel = skel.create_binary_image()
 
     columns_name = ['length', 'nodes', 'end_nodes', 'branches', 'tortuosity', 'global_mean', 'branch_mean']
@@ -468,7 +470,7 @@ def nb_node(img,
             it, 
             dil,
             segmentation):
-    
+
     """
     Create an nd_array. Each dilated apical surface is equal to the number of contained node of signal 2
 
@@ -493,7 +495,9 @@ def nb_node(img,
           node_df.y.to_numpy().astype(int),
           node_df.x.to_numpy().astype(int)] = 1
     nb=[]
+
     for i in face_df.index.values.tolist() : 
+
         cell_i = segmentation.enlarge_face_plane(i, dil)
         fill_cell_i = ndimage.binary_closing(cell_i, iterations = it).astype(int)
         #dil_fill_cell_i = ndimage.binary_dilation(fill_cell_i).astype(int)
@@ -541,7 +545,9 @@ def mean_connection(img,
     nghbr=[]
 
         
+
     for i in face_df.index.values.tolist() : 
+
         cell_i = segmentation.enlarge_face_plane(i, dil)
         fill_cell_i = ndimage.binary_closing(cell_i, iterations = it).astype(int)
         cross = nodes*fill_cell_i
@@ -589,6 +595,8 @@ def sum_betweenness_percell(img,
         coord_zk= int(node_df.z[k])
         centrality[coord_zk, coord_yk, coord_xk] = v
 
+
+
     for i in face_df.index.values.tolist() : 
         cell_i = segmentation.enlarge_face_plane(i, dil)
         fill_cell_i = ndimage.binary_closing(cell_i, iterations = it).astype(int)
@@ -635,7 +643,9 @@ def sum_closeness_percell(img,
         coord_zk= int(node_df.z[k])
         centrality[coord_zk, coord_yk, coord_xk] = v
 
+
     for i in face_df.index.values.tolist() : 
+
         cell_i = segmentation.enlarge_face_plane(i, dil)
         fill_cell_i = ndimage.binary_closing(cell_i, iterations = it).astype(int)
         cross = centrality*fill_cell_i
@@ -681,7 +691,9 @@ def sum_degree_percell(img,
         coord_zk= int(node_df.z[k])
         centrality[coord_zk, coord_yk, coord_xk] = v
 
+
     for i in face_df.index.values.tolist() : 
+
         cell_i = segmentation.enlarge_face_plane(i, dil)
         fill_cell_i = ndimage.binary_closing(cell_i, iterations = it).astype(int)
         cross = centrality*fill_cell_i
@@ -727,7 +739,9 @@ def mean_closeness_pc(img,
         coord_zk = int(node_df.z[k])
         centrality[coord_zk, coord_yk, coord_xk] = v
 
+
     for i in face_df.index.values.tolist() : 
+
         cell_i = segmentation.enlarge_face_plane(i, dil)
         fill_cell_i = ndimage.binary_closing(cell_i, iterations = it).astype(int)
         cross = centrality*fill_cell_i
@@ -737,6 +751,8 @@ def mean_closeness_pc(img,
         
     face_df['mean_closeness']=c
     return sum_centrality
+
+
 
 
 
@@ -787,7 +803,6 @@ def mean_degree_pc(img,
     return sum_centrality
 
 
-
 def mean_betweenness_pc(img,
                            node_df,
                            face_df,
@@ -822,6 +837,7 @@ def mean_betweenness_pc(img,
         coord_yk = int(node_df.y[k])
         coord_zk = int(node_df.z[k])
         centrality[coord_zk, coord_yk, coord_xk] = v
+
 
     for i in face_df.index.values.tolist() : 
         cell_i = segmentation.enlarge_face_plane(i, dil)
