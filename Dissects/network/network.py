@@ -19,8 +19,8 @@ def network_structure(skel, pixel_size, clean=False):
     df_junc : Dataframe
     """
     
-    skel.critical_point['z'] = skel.critical_point['z']*pixel_size['Z_SIZE']/pixel_size['X_SIZE']
-    skel.point['z'] = skel.point['z']*pixel_size['Z_SIZE']/pixel_size['X_SIZE']
+    skel.critical_point['z_um'] = skel.critical_point['z']*pixel_size['Z_SIZE']/pixel_size['X_SIZE']
+    skel.point['z_um'] = skel.point['z']*pixel_size['Z_SIZE']/pixel_size['X_SIZE']
     
     if not clean:
         skel.critical_point['id_original'] = skel.critical_point.index
@@ -136,11 +136,62 @@ def network_structure(skel, pixel_size, clean=False):
                       
     Junctions  = np.empty(len(lf),dtype='object')
     junc_points = np.empty(len(lf),dtype='object')
+    junc_points_p = np.empty(len(lf),dtype='object')
     junc_cp_ends = np.empty(len(lf),dtype='object')
     junc_cp_ends_srce = np.empty(len(lf),dtype='object')
     junc_cp_ends_trgt = np.empty(len(lf),dtype='object')
     length = np.zeros(len(lf))
 
+    for ijunc in range(len(lf)):
+        Junctions[ijunc] = []
+        ifil = 0
+        for fil in lf[ijunc]:
+            if ifil == 0:
+                ppoint = np.array(skel.point[skel.point['filament'] == fil][['x','y','z_um']])
+                Junctions[ijunc].append(ppoint)
+            if ifil == 1:
+                ppoint_before = ppoint
+                ppoint = np.array(skel.point[skel.point['filament'] == fil][['x','y','z_um']])
+                ppoint1 = ppoint
+                if np.all(ppoint[-1] == ppoint_before[0]):
+                    ##flip 0+1
+                    Junctions[ijunc][0] = np.flip(Junctions[ijunc][0],axis=0)
+                    ppoint1 = np.flip(ppoint,axis=0)
+                    Junctions[ijunc].append(ppoint1)
+                elif np.all(ppoint[0] == ppoint_before[0]):
+                    ##flip 0
+                    Junctions[ijunc][0] = np.flip(Junctions[ijunc][0],axis=0)
+                    Junctions[ijunc].append(ppoint)
+                elif np.all(ppoint[-1] == ppoint_before[-1]):
+                    ##flip 1
+                    ppoint1 = np.flip(ppoint,axis=0)
+                    Junctions[ijunc].append(ppoint1)
+                else:
+                    Junctions[ijunc].append(ppoint)
+                ppoint = ppoint1
+            if ifil > 1:
+                ppoint_before = ppoint
+                ppoint = np.array(skel.point[skel.point['filament'] == fil][['x','y','z_um']])
+                ppoint1 = ppoint
+                if np.all(ppoint[-1] == ppoint_before[-1]):
+                    ##flip 1
+                    ppoint1 = np.flip(ppoint,axis=0)
+                    Junctions[ijunc].append(ppoint1)
+                else:
+                    Junctions[ijunc].append(ppoint)
+                ppoint = ppoint1
+            ifil += 1  
+            junc_points[ijunc] = np.concatenate(Junctions[ijunc])
+            
+            junc_cp_ends[ijunc] = [lcp[ijunc][0],lcp[ijunc][-1]]
+            junc_cp_ends_srce[ijunc] = junc_cp_ends[ijunc][0]
+            junc_cp_ends_trgt[ijunc] = junc_cp_ends[ijunc][1]
+            #junc_cp_ends[ijunc] = [float_vert_df.index[np.where(idx_nflsup3 == lcp[ijunc][0])[0][0]],
+            #                       float_vert_df.index[np.where(idx_nflsup3 == lcp[ijunc][-1])[0][0]]]
+            length[ijunc] = np.sum(np.sqrt(np.sum(
+                ((np.roll(junc_points[ijunc], 1, axis=0) -
+                  junc_points[ijunc])[1:])**2, axis=1)))
+         
     for ijunc in range(len(lf)):
         Junctions[ijunc] = []
         ifil = 0
@@ -180,33 +231,37 @@ def network_structure(skel, pixel_size, clean=False):
                     Junctions[ijunc].append(ppoint)
                 ppoint = ppoint1
             ifil += 1  
-            junc_points[ijunc] = np.concatenate(Junctions[ijunc])
-            
+            junc_points_p[ijunc] = np.concatenate(Junctions[ijunc])
+           
             junc_cp_ends[ijunc] = [lcp[ijunc][0],lcp[ijunc][-1]]
             junc_cp_ends_srce[ijunc] = junc_cp_ends[ijunc][0]
             junc_cp_ends_trgt[ijunc] = junc_cp_ends[ijunc][1]
             #junc_cp_ends[ijunc] = [float_vert_df.index[np.where(idx_nflsup3 == lcp[ijunc][0])[0][0]],
             #                       float_vert_df.index[np.where(idx_nflsup3 == lcp[ijunc][-1])[0][0]]]
             length[ijunc] = np.sum(np.sqrt(np.sum(
-                ((np.roll(junc_points[ijunc], 1, axis=0) -
-                  junc_points[ijunc])[1:])**2, axis=1)))
-       
+                ((np.roll(junc_points_p[ijunc], 1, axis=0) -
+                  junc_points_p[ijunc])[1:])**2, axis=1)))
+
+
     df_junc = pd.DataFrame(data={'srce' : junc_cp_ends_srce,
                                  'trgt' :junc_cp_ends_trgt,
-                             'points_coords': junc_points,
-                             'points_coords_binaire': [junc_points[ijunc].astype(int)
+                             'points_coords_um': junc_points,
+                             'points_coords_binaire_um': [junc_points[ijunc].astype(int)
                                                 for ijunc in range(len(junc_points))],
+                                 
+                                 
+                             'points_coords': junc_points_p,
+                             'points_coords_binaire': [junc_points_p[ijunc].astype(int)
+                                                for ijunc in range(len(junc_points_p))],
+                                 
                              'length_AU': length,
                              'length_um': length*pixel_size['X_SIZE']
                                 
                                 })
     
 
-    skel.critical_point['z']=skel.critical_point['z']*pixel_size['X_SIZE']/pixel_size['Z_SIZE']
-    skel.point['z']=skel.point['z']*pixel_size['X_SIZE']/pixel_size['Z_SIZE']
        
     return df_junc
-
 
 
 def create_network(df_junc, skel):
@@ -250,6 +305,7 @@ def create_network(df_junc, skel):
 
     return node_df, link_df, G
 
+
 def centrality_array(img, dil, node_df, measure, pixel_size) :
     centrality= np.zeros(img.shape)
     x_size = pixel_size['X_SIZE']
@@ -290,7 +346,8 @@ def branch_analysis(df_junc, skel, image_myo, pixel_size):
 
     for i in range(len(df_junc)):
         
-        df_junc.points_coords_binaire[i][:,2] = (df_junc.points_coords.iloc[i][:,2]*pixel_size['Z_SIZE']).astype(int)
+
+        #df_junc.points_coords_binaire[i][:,2] = (df_junc.points_coords.iloc[i][:,2]*pixel_size['Z_SIZE']).astype(int)
         
         s_xyz = (skel.critical_point.x.iloc[df_junc.srce[i]],
                  skel.critical_point.y.iloc[df_junc.srce[i]],
@@ -312,6 +369,7 @@ def branch_analysis(df_junc, skel, image_myo, pixel_size):
 
         lm = np.mean(image_myo.T[tuple((df_junc.points_coords_binaire.loc[i].T).astype(int))])
         lmean.append(lm)
+
 
     df_junc['s_xyz'] = ls 
     df_junc['t_xyz'] = lt 
@@ -412,7 +470,6 @@ def nb_node(img,
             it, 
             dil,
             segmentation):
-    
 
     """
     Create an nd_array. Each dilated apical surface is equal to the number of contained node of signal 2
@@ -438,7 +495,9 @@ def nb_node(img,
           node_df.y.to_numpy().astype(int),
           node_df.x.to_numpy().astype(int)] = 1
     nb=[]
-    for i in range(len(face_df)) : 
+
+    for i in face_df.index.values.tolist() : 
+
         cell_i = segmentation.enlarge_face_plane(i, dil)
         fill_cell_i = ndimage.binary_closing(cell_i, iterations = it).astype(int)
         #dil_fill_cell_i = ndimage.binary_dilation(fill_cell_i).astype(int)
@@ -449,6 +508,7 @@ def nb_node(img,
     face_df['nb_nodes']=nb
         
     return nb_nodes
+
 
 
 def mean_connection(img, 
@@ -485,7 +545,9 @@ def mean_connection(img,
     nghbr=[]
 
         
-    for i in range(len(face_df)) : 
+
+    for i in face_df.index.values.tolist() : 
+
         cell_i = segmentation.enlarge_face_plane(i, dil)
         fill_cell_i = ndimage.binary_closing(cell_i, iterations = it).astype(int)
         cross = nodes*fill_cell_i
@@ -533,7 +595,9 @@ def sum_betweenness_percell(img,
         coord_zk= int(node_df.z[k])
         centrality[coord_zk, coord_yk, coord_xk] = v
 
-    for i in range(len(face_df)) : 
+
+
+    for i in face_df.index.values.tolist() : 
         cell_i = segmentation.enlarge_face_plane(i, dil)
         fill_cell_i = ndimage.binary_closing(cell_i, iterations = it).astype(int)
         cross = centrality*fill_cell_i
@@ -579,7 +643,9 @@ def sum_closeness_percell(img,
         coord_zk= int(node_df.z[k])
         centrality[coord_zk, coord_yk, coord_xk] = v
 
-    for i in range(len(face_df)) : 
+
+    for i in face_df.index.values.tolist() : 
+
         cell_i = segmentation.enlarge_face_plane(i, dil)
         fill_cell_i = ndimage.binary_closing(cell_i, iterations = it).astype(int)
         cross = centrality*fill_cell_i
@@ -625,7 +691,9 @@ def sum_degree_percell(img,
         coord_zk= int(node_df.z[k])
         centrality[coord_zk, coord_yk, coord_xk] = v
 
-    for i in range(len(face_df)) : 
+
+    for i in face_df.index.values.tolist() : 
+
         cell_i = segmentation.enlarge_face_plane(i, dil)
         fill_cell_i = ndimage.binary_closing(cell_i, iterations = it).astype(int)
         cross = centrality*fill_cell_i
@@ -671,7 +739,9 @@ def mean_closeness_pc(img,
         coord_zk = int(node_df.z[k])
         centrality[coord_zk, coord_yk, coord_xk] = v
 
-    for i in range(len(face_df)) : 
+
+    for i in face_df.index.values.tolist() : 
+
         cell_i = segmentation.enlarge_face_plane(i, dil)
         fill_cell_i = ndimage.binary_closing(cell_i, iterations = it).astype(int)
         cross = centrality*fill_cell_i
@@ -681,6 +751,8 @@ def mean_closeness_pc(img,
         
     face_df['mean_closeness']=c
     return sum_centrality
+
+
 
 
 
@@ -719,7 +791,7 @@ def mean_degree_pc(img,
         coord_zk = int(node_df.z[k])
         centrality[coord_zk, coord_yk, coord_xk] = v
 
-    for i in range(len(face_df)) : 
+    for i in face_df.index.values.tolist() : 
         cell_i = segmentation.enlarge_face_plane(i, dil)
         fill_cell_i = ndimage.binary_closing(cell_i, iterations = it).astype(int)
         cross = centrality*fill_cell_i
@@ -729,7 +801,6 @@ def mean_degree_pc(img,
         
     face_df['mean_degree']=c
     return sum_centrality
-
 
 
 def mean_betweenness_pc(img,
@@ -767,7 +838,8 @@ def mean_betweenness_pc(img,
         coord_zk = int(node_df.z[k])
         centrality[coord_zk, coord_yk, coord_xk] = v
 
-    for i in range(len(face_df)) : 
+
+    for i in face_df.index.values.tolist() : 
         cell_i = segmentation.enlarge_face_plane(i, dil)
         fill_cell_i = ndimage.binary_closing(cell_i, iterations = it).astype(int)
         cross = centrality*fill_cell_i
@@ -812,7 +884,7 @@ def max_degree_pc(img,
                    int(node_df.y.iloc[k]), 
                    int(node_df.x.iloc[k])] = node_df.nfil.iloc[k]
 
-    for i in range(len(face_df)) : 
+    for i in face_df.index.values.tolist() : 
         cell_i = segmentation.enlarge_face_plane(i, dil)
         fill_cell_i = ndimage.binary_closing(cell_i, iterations = it).astype(int)
         cross = centrality*fill_cell_i
