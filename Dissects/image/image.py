@@ -101,21 +101,11 @@ def normalise_im(im, kernelsize):
     return norm_im
 
 
-def apical_mask(img, face_df, edge_df, vert_df, points_df, pixel_size, it, dil):
+def apical_mask(img, face_df, it, dil):
     apical = np.zeros(img.shape)
 
-    for i in range(len(face_df)) : 
-        cell_i = enlarge_face_plane(img,
-                       face_df,
-                       edge_df,
-                       vert_df,
-                       points_df,
-                       i,
-                       dil,
-                       {"X_SIZE":X_SIZE, 
-                        "Y_SIZE":Y_SIZE, 
-                        "Z_SIZE":Z_SIZE})
-        
+    for i in face_df.index.values.tolist()  : 
+        cell_i = segmentation.enlarge_face_plane(i,thickness=0.75)
         apical[np.where(cell_i==1)]=1
         fill_apical =  ndimage.binary_closing(apical, iterations = it).astype(np.int)
     return fill_apical
